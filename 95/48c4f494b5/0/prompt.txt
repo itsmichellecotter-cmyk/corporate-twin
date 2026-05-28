@@ -1,0 +1,246 @@
+The platform is improving significantly.
+
+However, the experience still feels:
+
+* too static
+* too webpage-like
+* too editorial
+* too visually passive
+
+We now need to evolve Atlas into:
+a living ambient intelligence system.
+
+CRITICAL:
+The product should no longer feel like:
+a legal-tech interface.
+
+It should feel like:
+a computational intelligence environment.
+
+REFERENCE FEELING
+
+Move closer toward:
+
+* Apple Intelligence
+* Arc Browser
+* Linear
+* Notion AI
+* Legora
+* modern cinematic operating systems
+* premium AI-native interaction design
+
+The emotional feeling should be:
+calm,
+alive,
+futuristic,
+spatial,
+deeply intentional.
+
+MOST IMPORTANT PROBLEM
+
+The interface currently feels:
+flat.
+
+Everything appears:
+printed onto a white surface.
+
+We need:
+
+* atmospheric depth
+* dimensional layering
+* cinematic motion
+* ambient intelligence
+* subtle computational activity
+
+This should feel:
+like intelligence is continuously reasoning beneath the interface.
+
+SPATIAL DESIGN SYSTEM
+
+Introduce:
+
+* layered translucent surfaces
+* moving blur fields
+* floating glass panels
+* subtle ambient shadows
+* atmospheric gradients
+* soft edge lighting
+* slow background diffusion
+* moving light behavior
+* depth separation between interface layers
+
+DO NOT make this flashy.
+
+This should feel:
+highly restrained,
+high-budget,
+and sophisticated.
+
+MOTION SYSTEM OVERHAUL
+
+Motion is now one of the highest priorities.
+
+The interface should NEVER feel static.
+
+Add:
+
+* ambient floating movement
+* slow opacity breathing
+* kinetic graph expansion
+* subtle parallax
+* spatial transitions
+* cinematic scroll choreography
+* soft cursor-reactive lighting
+* intelligent loading states
+* animated reasoning propagation
+* flowing node emergence
+* graceful content reveal timing
+
+Motion should feel:
+calm and computational.
+
+NOT:
+playful or decorative.
+
+THE GRAPH EXPERIENCE MUST BECOME THE HERO
+
+The obligation graph is currently the strongest idea but visually underpowered.
+
+Transform it into:
+a living reasoning surface.
+
+The graph should:
+
+* evolve dynamically
+* breathe subtly
+* illuminate relationships gradually
+* animate dependency propagation
+* respond to hover proximity
+* surface asymmetry visually
+* reveal exposure chains progressively
+
+This should feel:
+like Atlas is actively thinking.
+
+NOT:
+like a static diagram.
+
+TYPOGRAPHY REFINEMENT
+
+Typography still feels too safe and evenly weighted.
+
+Push toward:
+
+* dramatic scale contrast
+* ultra-light typography
+* oversized moments
+* emotional whitespace
+* elegant silence
+* premium editorial rhythm
+
+Use:
+
+* fewer words
+* larger statements
+* more restraint
+
+The interface should feel:
+confident enough to say less.
+
+COPY REFINEMENT
+
+Remove copy that feels:
+
+* sensational
+* aggressive
+* startup-like
+* consumer-finance-like
+
+Avoid phrases like:
+“What your contract is actually doing to you.”
+
+Instead use language that feels:
+institutional,
+calm,
+intelligent,
+and precise.
+
+Preferred tone:
+“Atlas reveals hidden obligations and asymmetries before they become consequences.”
+
+Possible headline directions:
+
+* “Understand the obligations shaping your future.”
+* “Atlas turns agreements into living intelligence.”
+* “See the dependencies hidden inside your contracts.”
+* “Obligations. Exposure. Leverage.”
+* “Every agreement contains asymmetry.”
+
+Use fewer words overall.
+
+UPLOAD EXPERIENCE
+
+The upload flow is becoming strong.
+
+Now make it unforgettable.
+
+When a contract is uploaded:
+show:
+
+* live clause extraction
+* relationship propagation
+* obligation threading
+* asymmetry detection
+* flowing node generation
+* ambient reasoning animation
+* kinetic graph emergence
+
+The upload moment should feel:
+like a future operating system understanding reality in real time.
+
+CROSS-DOCUMENT INTELLIGENCE
+
+The multi-user intelligence layer should feel:
+magical.
+
+Atlas should surface:
+
+* hidden patterns
+* recurring asymmetries
+* unusual clauses
+* collective leverage trends
+* exposure clustering
+
+Visually:
+DO NOT use dashboards or charts.
+
+Instead:
+use:
+
+* flowing intelligence streams
+* spatial clusters
+* ambient insight surfaces
+* living relationship movement
+
+FINAL FEELING
+
+The final experience should make people feel:
+
+“This is not software.”
+
+“This feels like a new interface for reasoning about agreements.”
+
+MOST IMPORTANT:
+Prioritize:
+
+* emotional sophistication
+* memorability
+* cinematic interaction
+* visual restraint
+* computational atmosphere
+* spatial intelligence
+
+Do NOT prioritize:
+feature density,
+legal tooling,
+or enterprise UI conventions.
