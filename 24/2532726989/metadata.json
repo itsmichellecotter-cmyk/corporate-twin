@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.6.3",
+  "checkpoint_id": "242532726989",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 19,
+  "files_touched": [
+    "app/api/analyze/route.ts",
+    "app/page.tsx",
+    "package-lock.json",
+    "package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/24/2532726989/0/metadata.json",
+      "transcript": "/24/2532726989/0/full.jsonl",
+      "content_hash": "/24/2532726989/0/content_hash.txt",
+      "prompt": "/24/2532726989/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 385,
+    "cache_creation_tokens": 964740,
+    "cache_read_tokens": 37059559,
+    "output_tokens": 336333,
+    "api_call_count": 256
+  }
+}
