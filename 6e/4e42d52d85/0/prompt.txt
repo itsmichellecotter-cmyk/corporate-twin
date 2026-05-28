@@ -187,3 +187,7 @@ What do I need to do to deploy this update to the published link
 ---
 
 Is everything pushed to entire?
+
+---
+
+yes, push them all
