@@ -41,13 +41,6 @@ const sourceList = [
   "Cyber requirements",
 ];
 
-const integrationList = [
-  "OneDrive",
-  "Google Drive",
-  "SharePoint",
-  "Notion",
-];
-
 const graphNodes = [
   "Vendors",
   "Obligations",
@@ -56,6 +49,17 @@ const graphNodes = [
   "Regulatory framework",
   "Dependencies",
 ];
+
+const resultSignal = {
+  title: "Vendor exposure has become the dominant operational signal.",
+  summary:
+    "The system surfaces one urgent path through policy, contract, and operations—this is the signal the enterprise must act on first.",
+  details: [
+    "A vulnerable vendor cluster now anchors the primary escalation path.",
+    "GDPR risk is traced through obligations, controls and delivery teams.",
+    "This is not a dashboard; it is the company speaking through a single live signal.",
+  ],
+};
 
 const vulnerabilityStream = [
   {
@@ -253,14 +257,14 @@ const simulationFlows: SimulationFlow[] = [
 ];
 
 const pageMotion = {
-  initial: { opacity: 0, y: 24 },
+  initial: { opacity: 0, y: 18 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { type: "spring", stiffness: 88, damping: 18, mass: 0.85 },
+  exit: { opacity: 0, y: -12 },
+  transition: { duration: 0.7, ease: "easeOut" },
 };
 
 const buttonStyles =
-  "inline-flex items-center justify-center rounded-full bg-slate-50/5 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:bg-slate-50/10";
+  "inline-flex items-center justify-center rounded-full bg-slate-950/5 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-950/10 ring-1 ring-slate-900/10";
 
 export default function Home() {
   const [phase, setPhase] = useState<"landing" | "ingest" | "twin" | "simulate" | "vulnerability" | "result">("landing");
@@ -269,95 +273,97 @@ export default function Home() {
   const activeSimulation = simulationFlows.find((flow) => flow.id === selectedSimulation) ?? simulationFlows[0];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020306] text-slate-100">
+    <div className="relative min-h-screen overflow-hidden bg-[#f6f2eb] text-slate-950">
       <motion.div
         className="ambient-light"
-        animate={{ opacity: [0.55, 0.7, 0.55] }}
+        animate={{ opacity: [0.3, 0.55, 0.3] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
-      <motion.div
-        className="absolute inset-x-0 top-24 flex justify-center pointer-events-none"
-        animate={{ y: [0, -12, 0] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <div className="relative h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-3xl" />
-      </motion.div>
-      <motion.div
-        className="absolute left-20 top-32 h-36 w-36 rounded-full bg-amber-400/12 blur-3xl"
-        animate={{ x: [0, 10, 0], y: [0, -8, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute right-20 top-60 h-48 w-48 rounded-full bg-cyan-300/8 blur-3xl"
-        animate={{ x: [0, -12, 0], y: [0, 8, 0] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-      />
+      <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_15%_15%,rgba(203,139,70,0.16),transparent_24%),radial-gradient(circle_at_80%_18%,rgba(79,129,255,0.08),transparent_19%)] pointer-events-none" />
+      <div className="absolute right-0 top-28 h-[320px] w-[320px] -translate-x-1/3 rounded-full bg-slate-950/5 blur-3xl opacity-80 pointer-events-none" />
 
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-[1320px] flex-col justify-center px-6 py-10 sm:px-8 lg:px-12">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-12 text-center">
+      <main className="relative z-10 mx-auto min-h-screen max-w-[1400px] px-6 py-8 sm:px-8 lg:px-12">
+        <motion.button
+          type="button"
+          className="absolute left-6 top-6 inline-flex items-center gap-3 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_20px_80px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/10 backdrop-blur-sm"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setPhase("landing")}
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/5 text-sm font-bold text-slate-950">JS</span>
+          <span>Juritas Signal</span>
+        </motion.button>
+
+        <div className="relative flex min-h-[calc(100vh-4rem)] items-center">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.75, ease: "easeOut" }}
-            className="space-y-6 px-6 sm:px-0"
+            initial={{ opacity: 0.92, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.85, ease: "easeOut" }}
+            className="relative w-full overflow-hidden rounded-[48px] bg-white/80 p-10 shadow-[0_60px_120px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur-xl"
           >
-            <div className="inline-flex items-center gap-3 rounded-full bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.36em] text-slate-400 shadow-[0_20px_60px_rgba(0,0,0,0.16)]">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
-              Operational Twin
-            </div>
-            <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.05em] text-slate-50 sm:text-6xl">
-              Understand the organization beneath the surface.
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg leading-8 text-slate-400 sm:text-xl">
-              A single ambient interaction begins the journey. Materials ingest, relationships form, an operational twin awakens, and the system reasons through exposure in real time.
-            </p>
-          </motion.div>
+            <div className="absolute inset-y-0 right-0 hidden w-1/2 rounded-l-[48px] bg-gradient-to-l from-[#fffaf2] to-transparent opacity-70 sm:block" />
+            <div className="relative grid gap-10 lg:grid-cols-[0.70fr_0.30fr]">
+              <div className="space-y-10">
+                <motion.div
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="max-w-2xl space-y-5"
+                >
+                  <p className="text-xs uppercase tracking-[0.32em] text-slate-500">
+                    Ambient institutional intelligence
+                  </p>
+                  <h1 className="text-4xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-5xl">
+                    Looking into the living nervous system of the institution.
+                  </h1>
+                  <p className="text-lg leading-8 text-slate-600 sm:text-xl">
+                    Juritas Signal surfaces the single operating path that matters now, with calm editorial clarity and no dashboard clutter.
+                  </p>
+                </motion.div>
 
-          <AnimatePresence mode="wait">
+                <AnimatePresence mode="wait">
             {phase === "landing" ? (
               <motion.div
                 key="landing"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
-                <div className="space-y-6 text-left">
-                  <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Entry prompt</p>
+                <div className="space-y-10 text-left">
+                  <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Ambient intelligence</p>
+                  <div className="space-y-6">
+                    <h2 className="text-5xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-6xl">
+                      A living signal that reasons through enterprise complexity.
+                    </h2>
+                    <p className="max-w-2xl text-lg leading-9 text-slate-500">
+                      Not a chatbot, not a summary. Juritas Signal weaves contracts, policies, vendors and operations into a single strategic intelligence surface.
+                    </p>
+                  </div>
+
                   <motion.div
-                    initial={{ opacity: 0.85, y: 10 }}
+                    initial={{ opacity: 0.88, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="rounded-[28px] border border-white/10 bg-[#01050c]/80 px-5 py-4"
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                    className="rounded-[32px] border border-slate-200/60 bg-white/75 p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)]"
                   >
-                    <label className="text-sm font-medium text-slate-300">What would you like to understand about this organization?</label>
-                    <div className="mt-4 flex gap-3">
-                      <motion.input
-                        type="text"
-                        placeholder="Simulate a GDPR investigation"
-                        whileFocus={{ scale: 1.005 }}
-                        className="flex-1 rounded-3xl border border-white/10 bg-[#08121c]/90 px-5 py-4 text-lg text-slate-100 outline-none transition focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/10"
-                      />
-                      <motion.button
-                        type="button"
-                        className={buttonStyles}
-                        whileHover={{ y: -1.5 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setPhase("ingest")}
-                      >
-                        Begin
-                      </motion.button>
-                    </div>
+                    <p className="text-sm leading-7 text-slate-200">
+                      Begin with one signal. The system will build a living operational model, uncover hidden obligations, and surface the path your enterprise must act on first.
+                    </p>
                   </motion.div>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {integrationList.map((item) => (
-                      <motion.div
-                        key={item}
-                        whileHover={{ y: -2, scale: 1.01 }}
-                        className="rounded-full bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.28em] text-slate-400"
-                      >
-                        {item}
-                      </motion.div>
-                    ))}
+
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <motion.button
+                      type="button"
+                      className={buttonStyles}
+                      whileHover={{ y: -1.5 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setPhase("ingest")}
+                    >
+                      Activate twin
+                    </motion.button>
+                    <p className="max-w-2xl text-sm text-slate-400">
+                      Source materials: vendor agreements, policies, governance frameworks and operational delivery intelligence.
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -366,62 +372,52 @@ export default function Home() {
                 key="ingest"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
-                <div className="space-y-8">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: "easeOut" }}
-                    className="max-w-2xl"
-                  >
+                <div className="space-y-10">
+                  <div className="max-w-2xl">
                     <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Ingestion</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-50">The organization begins to reveal itself.</h2>
-                    <p className="mt-4 text-base leading-7 text-slate-400">
-                      Files and integrations are understood as entities, obligations, and risk signals. The system builds a living enterprise model without exposing raw files.
+                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+                      The signal begins to construct the institution.
+                    </h2>
+                    <p className="mt-5 text-base leading-8 text-slate-500">
+                      Juritas Signal translates contracts, obligations and policies into a coherent operational model that surfaces teams, vendors and dependencies as a single reasoning surface.
                     </p>
-                  </motion.div>
+                  </div>
 
-                  <div className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
+                  <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                     <motion.div
                       layout
                       initial={{ opacity: 0.9, scale: 0.99 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                      className="relative overflow-hidden rounded-[32px] bg-[#07121c]/90 p-8 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
+                      transition={{ duration: 0.82, ease: "easeOut" }}
+                      className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                     >
                       <motion.div
-                        className="absolute left-0 top-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
+                        className="absolute left-6 top-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
                         animate={{ y: [0, -8, 0] }}
                         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
                       />
                       <motion.div
-                        className="absolute right-4 top-10 h-20 w-20 rounded-full bg-amber-400/10 blur-3xl"
-                        animate={{ y: [0, 8, 0] }}
+                        className="absolute right-8 bottom-8 h-28 w-28 rounded-full bg-amber-400/10 blur-3xl"
+                        animate={{ y: [0, 10, 0] }}
                         transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
                       />
-                      <div className="relative space-y-6">
-                        <div className="space-y-3">
-                          {sourceList.slice(0, 3).map((source, index) => (
+                      <div className="relative space-y-8">
+                        <div className="space-y-4">
+                          <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Foundational sources</p>
+                          <p className="text-base leading-7 text-slate-200">
+                            The system ingests vendor agreements, policies, governance evidence, and operational delivery data to start building the twin.
+                          </p>
+                        </div>
+                        <div className="space-y-4">
+                          {sourceList.slice(0, 4).map((source, index) => (
                             <motion.div
                               key={source}
                               initial={{ opacity: 0, y: 18 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                              className="rounded-3xl bg-white/5 px-4 py-3 text-sm text-slate-200"
-                            >
-                              {source}
-                            </motion.div>
-                          ))}
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {sourceList.slice(3).map((source, index) => (
-                            <motion.div
-                              key={source}
-                              initial={{ opacity: 0, y: 18 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.16 + 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                              className="rounded-3xl bg-white/5 px-4 py-3 text-sm text-slate-200"
+                            className="rounded-[28px] border border-slate-200/60 bg-slate-50 px-5 py-4 text-sm text-slate-700"
                             >
                               {source}
                             </motion.div>
@@ -429,45 +425,42 @@ export default function Home() {
                         </div>
                       </div>
                     </motion.div>
+
                     <motion.div
                       layout
-                      whileHover={{ y: -2 }}
-                      className="flex flex-col justify-between rounded-[32px] bg-[#08131c]/90 p-8 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
+                      initial={{ opacity: 0.9, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.82, ease: "easeOut" }}
+                      className="rounded-[36px] bg-white/80 p-10 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                     >
-                      <div className="space-y-4">
-                        <motion.div
-                          initial={{ opacity: 0, y: 18 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.55, ease: "easeOut" }}
-                          className="flex items-center justify-between rounded-3xl bg-slate-950/50 px-4 py-3 text-sm text-slate-200"
-                        >
-                          <span>Entities discovered</span>
-                          <span>41</span>
-                        </motion.div>
-                        <motion.div
-                          initial={{ opacity: 0, y: 18 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1, duration: 0.55, ease: "easeOut" }}
-                          className="flex items-center justify-between rounded-3xl bg-slate-950/50 px-4 py-3 text-sm text-slate-200"
-                        >
-                          <span>Connections formed</span>
-                          <span>28</span>
-                        </motion.div>
+                      <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Operational model</p>
+<p className="mt-4 text-lg font-semibold text-slate-950">A layered model begins to breathe.</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-500">
+                        Contracts, vendor access, policy coverage and team responsibilities are now connected into an emergent institutional surface.
+                      </p>
+
+                      <div className="mt-8 space-y-4">
+                          <div className="rounded-[28px] bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
+                            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Entities discovered</p>
+                            <p className="mt-3 text-xl font-semibold text-slate-950">41</p>
+                          </div>
+                          <div className="rounded-[28px] bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
+                            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Connections forged</p>
+                            <p className="mt-3 text-xl font-semibold text-slate-950">28</p>
+                        </div>
                       </div>
-                      <motion.button
-                        type="button"
-                        className={buttonStyles}
-                        whileHover={{ y: -1.5 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => {
-                          setSelectedSimulation("gdpr");
-                          setPhase("simulate");
-                        }}
-                      >
-                        Continue
-                      </motion.button>
                     </motion.div>
                   </div>
+
+                  <motion.button
+                    type="button"
+                    className={buttonStyles}
+                    whileHover={{ y: -1.5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setPhase("twin")}
+                  >
+                    Continue
+                  </motion.button>
                 </div>
               </motion.div>
             ) : phase === "twin" ? (
@@ -475,20 +468,22 @@ export default function Home() {
                 key="twin"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
-                <div className="space-y-8">
+                <div className="space-y-10">
                   <div className="max-w-2xl">
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Operational Twin</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-50">A living institutional graph emerges.</h2>
-                    <p className="mt-4 text-base leading-7 text-slate-400">
-                      The enterprise is represented as flowing relationships, floating layers, and glowing operational connections instead of technical nodes.
+                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Operational twin</p>
+                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+                      The enterprise appears as a living relationship map.
+                    </h2>
+                    <p className="mt-5 text-base leading-8 text-slate-400">
+                      This is an intelligence surface, not another dashboard. Vendors, obligations, policies and operations are connected into a single strategic field.
                     </p>
                   </div>
 
                   <motion.div
-                    className="relative overflow-hidden rounded-[32px] bg-[#07131c]/90 p-10 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
-                    initial={{ opacity: 0.9, scale: 0.99 }}
+                    className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
+                    initial={{ opacity: 0.92, scale: 0.99 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.75, ease: "easeOut" }}
                   >
@@ -502,37 +497,39 @@ export default function Home() {
                       animate={{ y: [0, 10, 0] }}
                       transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
                     />
-                    <div className="relative mx-auto grid max-w-2xl gap-6">
-                      <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="relative mx-auto grid max-w-2xl gap-8">
+                      <div className="grid gap-5 sm:grid-cols-2">
                         {graphNodes.slice(0, 3).map((node, index) => (
                           <motion.div
                             key={node}
                             whileHover={{ y: -2, scale: 1.003 }}
-                            animate={{ opacity: [0.8, 1, 0.8], scale: [0.98, 1, 0.98] }}
-                            transition={{ duration: 8, repeat: Infinity, delay: index * 0.6, ease: "easeInOut" }}
-                            className="rounded-[28px] bg-white/5 px-5 py-4 text-sm text-slate-200 backdrop-blur-sm"
+                            animate={{ opacity: [0.85, 1, 0.85], scale: [0.98, 1, 0.98] }}
+                            transition={{ duration: 10, repeat: Infinity, delay: index * 0.7, ease: "easeInOut" }}
+                            className="rounded-[32px] bg-slate-50 px-6 py-5 text-sm text-slate-700 backdrop-blur-sm"
                           >
                             {node}
                           </motion.div>
                         ))}
                       </div>
                       <motion.div
-                        className="mx-auto flex max-w-[320px] flex-col items-center gap-4 rounded-[36px] bg-slate-950/50 px-6 py-7 text-center shadow-[0_20px_80px_rgba(0,0,0,0.28)]"
+                        className="mx-auto flex max-w-[360px] flex-col items-center gap-4 rounded-[40px] bg-cyan-500/10 px-8 py-8 text-center shadow-[0_22px_90px_rgba(15,23,42,0.12)]"
                         animate={{ y: [0, -6, 0] }}
                         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
                       >
-                        <p className="text-xs uppercase tracking-[0.32em] text-slate-400">Core</p>
-                        <p className="text-2xl font-semibold text-slate-50">Exposure zone</p>
-                        <p className="text-sm leading-6 text-slate-400">A strategic center traces risk between vendors, obligations, policies and operations.</p>
+                        <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Core signal</p>
+                        <p className="text-3xl font-semibold text-slate-950">Exposure zone</p>
+                        <p className="max-w-sm text-sm leading-6 text-slate-500">
+                          A strategic center traces risk from vendors through obligations to policy coverage.
+                        </p>
                       </motion.div>
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-5 sm:grid-cols-2">
                         {graphNodes.slice(3).map((node, index) => (
                           <motion.div
                             key={node}
                             whileHover={{ y: -2, scale: 1.003 }}
-                            animate={{ opacity: [0.8, 1, 0.8], scale: [0.98, 1, 0.98] }}
-                            transition={{ duration: 8, repeat: Infinity, delay: 0.4 + index * 0.6, ease: "easeInOut" }}
-                            className="rounded-[28px] bg-white/5 px-5 py-4 text-sm text-slate-200 backdrop-blur-sm"
+                            animate={{ opacity: [0.85, 1, 0.85], scale: [0.98, 1, 0.98] }}
+                            transition={{ duration: 10, repeat: Infinity, delay: 0.5 + index * 0.7, ease: "easeInOut" }}
+                            className="rounded-[32px] bg-white/5 px-6 py-5 text-sm text-slate-200 backdrop-blur-sm"
                           >
                             {node}
                           </motion.div>
@@ -551,7 +548,7 @@ export default function Home() {
                       setPhase("simulate");
                     }}
                   >
-                    Run simulation
+                    Run scenario
                   </motion.button>
                 </div>
               </motion.div>
@@ -560,18 +557,20 @@ export default function Home() {
                 key="simulate"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
-                <div className="space-y-8">
+                <div className="space-y-10">
                   <div className="max-w-2xl">
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Simulation Engine</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-50">Institutional reasoning, not a generic answer.</h2>
-                    <p className="mt-4 text-base leading-7 text-slate-400">
-                      The operational twin runs scenario simulations through contracts, policies, vendors, and team dependencies. Each flow surfaces why something matters and how risk propagates.
+                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Simulation engine</p>
+                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+                      Institutional reasoning through scenario flows.
+                    </h2>
+                    <p className="mt-5 max-w-2xl text-base leading-8 text-slate-400">
+                      Every simulation is generated as a living chain of dependencies, exposures, and operational consequences — not a generic answer.
                     </p>
                   </div>
 
-                  <div className="grid gap-6 lg:grid-cols-[0.95fr_0.7fr]">
+                  <div className="grid gap-8 lg:grid-cols-[1.14fr_0.86fr]">
                     <div className="space-y-6">
                       <div className="grid gap-3 sm:grid-cols-3">
                         {simulationFlows.map((flow) => (
@@ -582,8 +581,8 @@ export default function Home() {
                             whileHover={{ y: -2 }}
                             className={`rounded-[28px] border px-5 py-4 text-left transition ${
                               flow.id === selectedSimulation
-                                ? "border-cyan-400/40 bg-cyan-500/10 text-slate-50"
-                                : "border-white/10 bg-white/5 text-slate-300 hover:border-slate-200/20 hover:bg-white/10"
+                                ? "border-cyan-400/40 bg-cyan-500/10 text-slate-950"
+                                : "border-slate-200/60 bg-slate-50 text-slate-700 hover:border-slate-300/80 hover:bg-white"
                             }`}
                           >
                             <p className="text-xs uppercase tracking-[0.28em] text-slate-400">{flow.title}</p>
@@ -595,81 +594,49 @@ export default function Home() {
                       <motion.div
                         initial={{ opacity: 0.95, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.65, ease: "easeOut" }}
-                        className="rounded-[32px] bg-[#07121c]/90 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
+                        transition={{ duration: 0.7, ease: "easeOut" }}
+                        className="rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                       >
                         <div className="space-y-6">
-                          <div className="space-y-2">
-                            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Trigger event</p>
-                            <h3 className="text-2xl font-semibold text-slate-50">{activeSimulation.title}</h3>
-                            <p className="text-sm leading-6 text-slate-400">{activeSimulation.trigger}</p>
+                          <div className="space-y-3">
+                            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Active scenario</p>
+                            <h3 className="text-3xl font-semibold text-slate-950">{activeSimulation.title}</h3>
+                            <p className="text-sm leading-6 text-slate-500">{activeSimulation.subtitle}</p>
                           </div>
 
-                          <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-4">
                             {[
-                              { label: "Institutional reasoning", value: activeSimulation.reasoning },
-                              { label: "Dependency tracing", value: activeSimulation.dependencies },
+                              { label: "Trigger event", content: activeSimulation.trigger },
+                              { label: "Institutional reasoning", content: activeSimulation.reasoning },
+                              { label: "Dependency tracing", content: activeSimulation.dependencies },
+                              { label: "Exposure identification", content: activeSimulation.exposure },
+                              { label: "Risk propagation", content: activeSimulation.propagation },
+                              { label: "Operational consequence", content: activeSimulation.consequences },
                             ].map((item) => (
-                              <div key={item.label} className="rounded-[24px] bg-white/5 p-4 text-sm text-slate-200 backdrop-blur-sm">
-                                <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
-                                <p className="mt-3 leading-6">{item.value}</p>
+                            <div key={item.label} className="rounded-[28px] border border-slate-200/60 bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
+                              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
+                              <p className="mt-3 leading-7 text-slate-700">{item.content}</p>
                               </div>
                             ))}
                           </div>
                         </div>
                       </motion.div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {[
-                          { title: "Exposure identified", content: activeSimulation.exposure },
-                          { title: "Risk propagation", content: activeSimulation.propagation },
-                        ].map((item) => (
-                          <motion.div
-                            key={item.title}
-                            initial={{ opacity: 0, y: 18 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.55, ease: "easeOut" }}
-                            className="rounded-[28px] bg-white/5 p-6 text-sm text-slate-200 backdrop-blur-sm"
-                          >
-                            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{item.title}</p>
-                            <p className="mt-3 leading-6 text-slate-100">{item.content}</p>
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      <motion.div
-                        className="rounded-[32px] bg-[#0a1926]/90 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.18)]"
-                        initial={{ opacity: 0, y: 18 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.55, ease: "easeOut" }}
-                      >
-                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Operational consequences</p>
-                        <p className="mt-3 text-base leading-7 text-slate-200">{activeSimulation.consequences}</p>
-                      </motion.div>
-
-                      <motion.div
-                        className="rounded-[32px] bg-white/5 p-6 text-slate-200 backdrop-blur-sm"
-                        initial={{ opacity: 0, y: 18 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.55, ease: "easeOut" }}
-                      >
-                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Recommended interventions</p>
-                        <p className="mt-3 leading-7 text-slate-100">{activeSimulation.interventions}</p>
-                      </motion.div>
                     </div>
 
                     <div className="space-y-6">
                       <motion.div
-                        className="rounded-[32px] bg-[#08131c]/90 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
+                        className="rounded-[36px] bg-white/80 p-8 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                         initial={{ opacity: 0.95, x: 24 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.7, ease: "easeOut" }}
+                        transition={{ duration: 0.75, ease: "easeOut" }}
                       >
                         <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Institutional graph</p>
-                        <p className="mt-3 text-sm leading-6 text-slate-400">The AI continuously binds teams, vendors, obligations, jurisdictions, and systems into the same reasoning surface.</p>
-                        <div className="mt-5 space-y-3">
+                        <p className="mt-3 text-sm leading-6 text-slate-400">
+                          The twin reasons across teams, vendors, obligations, jurisdictions and systems in one continuous surface.
+                        </p>
+                        <div className="mt-6 space-y-3">
                           {activeSimulation.relationships.map((relation) => (
-                            <div key={relation} className="rounded-3xl bg-white/5 px-4 py-3 text-sm text-slate-200">
+                            <div key={relation} className="rounded-[28px] bg-slate-50 px-4 py-4 text-sm text-slate-700">
                               {relation}
                             </div>
                           ))}
@@ -677,17 +644,17 @@ export default function Home() {
                       </motion.div>
 
                       <motion.div
-                        className="rounded-[32px] bg-[#0c1724]/90 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.16)]"
+                        className="rounded-[36px] bg-white/80 p-8 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                         initial={{ opacity: 0.95, x: 24 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.7, ease: "easeOut", delay: 0.05 }}
+                        transition={{ duration: 0.75, ease: "easeOut", delay: 0.05 }}
                       >
                         <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Simulation scorecard</p>
-                        <div className="mt-5 grid gap-3">
+                        <div className="mt-6 space-y-4">
                           {activeSimulation.metrics.map((metric) => (
-                            <div key={metric.label} className="flex items-center justify-between rounded-3xl bg-white/5 px-4 py-3 text-sm text-slate-200">
+                            <div key={metric.label} className="flex items-center justify-between rounded-[28px] bg-slate-50 px-4 py-4 text-sm text-slate-700">
                               <span>{metric.label}</span>
-                              <span className="font-semibold text-slate-50">{metric.value}</span>
+                              <span className="font-semibold text-slate-950">{metric.value}</span>
                             </div>
                           ))}
                         </div>
@@ -711,45 +678,47 @@ export default function Home() {
                 key="vulnerability"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
-                <div className="space-y-8">
+                <div className="space-y-10">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    transition={{ duration: 0.75, ease: "easeOut" }}
                     className="max-w-2xl"
                   >
                     <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Vulnerability intelligence</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-50">A living operational stream emerges.</h2>
-                    <p className="mt-4 text-base leading-7 text-slate-400">
-                      Consequential risk signals surface as an ambient intelligence flow, not a notification center. Each item explains causal relationships and connects back to the corporate twin.
+                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+                      Hidden risk becomes a coherent operational stream.
+                    </h2>
+                    <p className="mt-5 text-base leading-8 text-slate-500">
+                      These signals are surfaced as causal relationships and institutional exposure points, not noise. Each insight ties back to the twin’s model.
                     </p>
                   </motion.div>
 
-                  <div className="relative overflow-hidden rounded-[32px] bg-[#07121c]/90 p-10 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.16)]">
+                  <div className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]">
                     <motion.div
-                      className="absolute left-12 top-24 bottom-10 w-px bg-gradient-to-b from-cyan-400/30 via-transparent to-amber-400/30"
-                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      className="absolute left-10 top-24 bottom-10 w-px bg-gradient-to-b from-cyan-400/30 via-transparent to-amber-400/30"
+                      animate={{ opacity: [0.58, 1, 0.58] }}
                       transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <div className="relative mx-auto max-w-2xl space-y-6">
                       {vulnerabilityStream.map((item, index) => (
                         <motion.div
                           key={item.title}
-                          initial={{ opacity: 0, y: 18 }}
+                          initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
                           whileHover={{ y: -2, scale: 1.005 }}
-                          className="relative flex gap-6 rounded-[28px] bg-white/5 px-6 py-5 backdrop-blur-sm"
+                          className="relative flex gap-6 rounded-[32px] bg-white/5 px-6 py-6 backdrop-blur-sm"
                         >
                           <div className="mt-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300 shadow-[0_0_20px_rgba(79,198,255,0.25)]">
                             <div className="h-2 w-2 rounded-full bg-cyan-300" />
                           </div>
                           <div className="space-y-2 text-left">
-                            <p className="text-sm uppercase tracking-[0.28em] text-slate-400">{item.title}</p>
-                            <p className="text-base text-slate-100">{item.description}</p>
-                            <p className="text-sm text-slate-400">{item.relation}</p>
+                            <p className="text-sm uppercase tracking-[0.28em] text-slate-500">{item.title}</p>
+                            <p className="text-base text-slate-700">{item.description}</p>
+                            <p className="text-sm text-slate-500">{item.relation}</p>
                           </div>
                         </motion.div>
                       ))}
@@ -772,49 +741,51 @@ export default function Home() {
                 key="result"
                 {...pageMotion}
                 layout
-                className="w-full max-w-3xl rounded-[36px] bg-white/5 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
               >
                 <div className="space-y-10">
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    transition={{ duration: 0.75, ease: "easeOut" }}
                     className="max-w-2xl"
                   >
                     <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Outcome</p>
-                    <h2 className="mt-3 text-5xl font-semibold tracking-[-0.05em] text-slate-50">One urgent signal has surfaced.</h2>
+                    <h2 className="mt-3 text-5xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-6xl">
+                      One urgent signal has surfaced.
+                    </h2>
                     <p className="mt-5 text-lg leading-8 text-slate-400">
                       The enterprise speaks through a single emergent path. Hidden vendor risk, regulatory exposure, and operational dependency converge into a quiet, unmistakable conclusion.
                     </p>
                   </motion.div>
 
                   <motion.div
-                    className="relative overflow-hidden rounded-[36px] bg-[#07121c]/90 p-10 text-slate-100 shadow-[0_35px_100px_rgba(0,0,0,0.18)]"
+                    className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
                     initial={{ opacity: 0.95, scale: 0.99 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.75, ease: "easeOut" }}
                   >
                     <motion.div
-                      className="absolute left-8 top-10 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
+                      className="absolute left-10 top-12 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
                       animate={{ y: [0, -10, 0] }}
                       transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <motion.div
-                      className="absolute right-8 top-16 h-24 w-24 rounded-full bg-amber-400/10 blur-3xl"
+                      className="absolute right-10 top-18 h-24 w-24 rounded-full bg-amber-400/10 blur-3xl"
                       animate={{ y: [0, 10, 0] }}
                       transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <motion.div
-                      className="absolute inset-x-12 top-20 h-[1px] bg-gradient-to-r from-cyan-400/30 via-transparent to-amber-400/30"
+                      className="absolute inset-x-12 top-24 h-[1px] bg-gradient-to-r from-cyan-400/30 via-transparent to-amber-400/30"
                       animate={{ opacity: [0.6, 1, 0.6] }}
                       transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
                     />
 
-                    <div className="space-y-6">
-                      <div className="rounded-[32px] bg-white/5 p-8 text-slate-100 backdrop-blur-sm">
+                    <div className="space-y-8">
+                      <div className="rounded-[36px] bg-slate-50 p-10 text-slate-950 backdrop-blur-sm">
                         <p className="text-sm uppercase tracking-[0.32em] text-slate-500">Signal</p>
-                        <p className="mt-4 text-3xl font-semibold leading-tight text-slate-50">{resultSignal.title}</p>
-                        <p className="mt-4 text-base leading-7 text-slate-400">{resultSignal.summary}</p>
+                        <p className="mt-4 text-3xl font-semibold leading-tight text-slate-950">{resultSignal.title}</p>
+                        <p className="mt-4 text-base leading-7 text-slate-500">{resultSignal.summary}</p>
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-3">
@@ -825,9 +796,9 @@ export default function Home() {
                             initial={{ opacity: 0, y: 18 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                            className="rounded-[28px] bg-white/5 px-5 py-5 text-sm text-slate-200 backdrop-blur-sm"
+                            className="rounded-[32px] bg-slate-50 px-6 py-6 text-sm text-slate-700 backdrop-blur-sm"
                           >
-                            <p className="text-base text-slate-100">{item}</p>
+                            <p className="text-base leading-7 text-slate-700">{item}</p>
                           </motion.div>
                         ))}
                       </div>
