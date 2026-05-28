@@ -135,12 +135,9 @@ export default function Home() {
   const [visibleClauses, setVisible]    = useState<Set<number>>(new Set());
   const [activeNode, setActiveNode]     = useState<string | null>(null);
   const [showKnowledge, setShowKb]      = useState(false);
-  const [kbFiles, setKbFiles]           = useState<File[]>([]);
-  const [kbAbsorbing, setKbAbsorbing]   = useState(false);
   const [absorbedDocs, setAbsorbedDocs] = useState<KnowledgeDoc[]>([]);
 
-  const inputRef   = useRef<HTMLInputElement>(null);
-  const kbInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const snapSession = useRef<UserSession | null>(null);
   const snapFile    = useRef<File | null>(null);
 
@@ -225,26 +222,6 @@ export default function Home() {
     saveSession(s); setSession(s); setFile(null); setPhase("landing");
   };
 
-  const absorb = (files: FileList) => {
-    const incoming = Array.from(files);
-    setKbFiles(incoming);
-    setKbAbsorbing(true);
-    setTimeout(() => {
-      const newDocs: KnowledgeDoc[] = incoming.map(f => ({
-        id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-        name: f.name,
-        uploadedAt: Date.now(),
-        sizeKb: f.size > 0 ? Math.round(f.size / 1024) : undefined,
-      }));
-      setAbsorbedDocs(prev => {
-        const merged = [...prev, ...newDocs.filter(d => !prev.some(p => p.name === d.name))];
-        try { localStorage.setItem("atlas_knowledge_docs", JSON.stringify(merged)); } catch {}
-        return merged;
-      });
-      setKbFiles([]);
-      setKbAbsorbing(false);
-    }, 3200);
-  };
 
   const contractName =
     file?.name?.replace(/\.[^/.]+$/, "") ??
@@ -1062,111 +1039,62 @@ export default function Home() {
 
             {/* Sheet */}
             <motion.div
-              className="glass-surface relative z-10 w-full max-w-[540px] overflow-hidden
-                         rounded-t-[28px] px-10 py-12 sm:rounded-[28px]"
+              className="glass-surface relative z-10 flex w-full max-w-[540px] flex-col
+                         rounded-t-[28px] sm:rounded-[28px]
+                         max-h-[90vh] overflow-y-auto overscroll-contain"
               initial={{ opacity: 0, y: 52, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 30, scale: 0.97 }}
               transition={{ duration: 0.52, ease: E }}
             >
-              <div className="space-y-8">
+              <div className="space-y-8 px-10 py-12">
                 <div className="space-y-3">
                   <p className="text-[10px] uppercase tracking-[0.32em] text-[#15120E]/25">
                     Knowledge layer
                   </p>
                   <h3 className="text-[2rem] font-extralight tracking-[-0.035em] text-[#15120E]">
-                    Atlas absorbs context.
+                    Contextual frameworks.
                   </h3>
                   <p className="text-[14px] font-light leading-7 text-[#15120E]/40">
-                    Upload labor protections, tenant rights, fairness frameworks, or regulatory guidance.
+                    These documents inform Atlas's analysis. Source names are attributed in findings.
                   </p>
                 </div>
 
-                <input ref={kbInputRef} type="file" accept=".pdf,.doc,.docx,.txt"
-                  multiple className="hidden"
-                  onChange={e => { if (e.target.files?.length) absorb(e.target.files); }}
-                />
-
-                <AnimatePresence mode="wait">
-                  {kbAbsorbing ? (
-                    <motion.div key="absorbing"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-5 rounded-[18px] bg-[#15120E]/3 px-6 py-7"
+                {/* Read-only document list */}
+                <div className="space-y-2">
+                  {knowledgeDocs.map((name, i) => (
+                    <motion.div key={`seed-${i}`}
+                      className="flex items-center gap-3 py-1.5"
+                      initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.38, delay: i * 0.06 }}
                     >
-                      <p className="text-[13px] font-light text-[#15120E]/50">
-                        Absorbing {kbFiles.length} document{kbFiles.length !== 1 ? "s" : ""}
-                      </p>
-                      <div className="mb-1 space-y-1">
-                        {kbFiles.map(f => (
-                          <p key={f.name} className="text-[10px] text-[#15120E]/30 truncate">
-                            {f.name}
-                          </p>
-                        ))}
-                      </div>
-                      <div className="relative h-px w-full overflow-hidden rounded-full bg-[#15120E]/7">
-                        <motion.div
-                          className="absolute inset-y-0 left-0 h-full rounded-full bg-[#15120E]/22"
-                          initial={{ width: "0%" }} animate={{ width: "100%" }}
-                          transition={{ duration: 3, ease: [0.2, 0, 0.4, 1] }}
-                        />
-                      </div>
+                      <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
+                      <p className="text-[11px] text-[#15120E]/50 truncate">{name}</p>
                     </motion.div>
-                  ) : (
-                    <motion.div key="idle"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-4"
+                  ))}
+                  {absorbedDocs.map((doc, i) => (
+                    <motion.div key={doc.id}
+                      className="flex items-center gap-3 py-1.5"
+                      initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.38, delay: (knowledgeDocs.length + i) * 0.06 }}
                     >
-                      <button
-                        onClick={() => kbInputRef.current?.click()}
-                        className="glass-surface-subtle w-full cursor-pointer rounded-[18px]
-                                   border border-[#15120E]/6 px-6 py-7 text-center
-                                   transition-colors hover:bg-white/65"
-                      >
-                        <p className="text-[13px] font-light text-[#15120E]/30">
-                          Upload knowledge documents
-                        </p>
-                        <p className="mt-1 text-[10px] text-[#15120E]/18">
-                          Select one or multiple · PDF · DOCX · TXT
-                        </p>
-                      </button>
-
-                      {/* Seed docs + user-uploaded */}
-                      {(knowledgeDocs.length > 0 || absorbedDocs.length > 0) && (
-                        <div className="space-y-2 pt-1">
-                          {knowledgeDocs.map((name, i) => (
-                            <motion.div key={`seed-${i}`}
-                              className="flex items-center gap-3 py-1"
-                              initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.38, delay: i * 0.06 }}
-                            >
-                              <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
-                              <p className="text-[11px] text-[#15120E]/36 truncate">{name}</p>
-                            </motion.div>
-                          ))}
-                          {absorbedDocs.map((doc, i) => (
-                            <motion.div key={doc.id}
-                              className="flex items-center gap-3 py-1"
-                              initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.38, delay: (knowledgeDocs.length + i) * 0.06 }}
-                            >
-                              <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
-                              <p className="text-[11px] text-[#15120E]/36 truncate">{doc.name}</p>
-                            </motion.div>
-                          ))}
-                        </div>
-                      )}
+                      <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
+                      <p className="text-[11px] text-[#15120E]/50 truncate">{doc.name}</p>
                     </motion.div>
+                  ))}
+                  {knowledgeDocs.length === 0 && absorbedDocs.length === 0 && (
+                    <p className="text-[11px] text-[#15120E]/25">No documents in corpus yet.</p>
                   )}
-                </AnimatePresence>
+                </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-t border-[#15120E]/5 pt-6">
                   <button onClick={() => setShowKb(false)}
                     className="text-[11px] text-[#15120E]/22 transition-colors hover:text-[#15120E]/45">
                     Close
                   </button>
                   <a href="/admin"
                     className="text-[11px] text-[#15120E]/22 transition-colors hover:text-[#15120E]/45">
-                    Admin →
+                    Manage corpus →
                   </a>
                 </div>
               </div>
