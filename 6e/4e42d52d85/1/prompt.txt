@@ -1,0 +1,27 @@
+Continue previous prompt
+
+---
+
+Continue previous prompt
+
+---
+
+I'm confused. I have $2k in claude code credits, why am I running into this usage limitation
+
+---
+
+Continue finishing previous prompt
+
+---
+
+Ctrl + C
+
+---
+
+<task-notification>
+<task-id>b1zp8qdxk</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>C:\Users\miche\AppData\Local\Temp\claude\C--Users-miche-corporate-twin\929f08aa-0841-437e-a631-a9f27d8f4e19\tasks\b1zp8qdxk.output</output-file>
+<status>killed</status>
+<summary>Background command "Start dev server" was stopped</summary>
+</task-notification>
