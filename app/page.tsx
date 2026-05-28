@@ -134,6 +134,8 @@ export default function Home() {
   const [progress, setProgress]         = useState(0);
   const [visibleClauses, setVisible]    = useState<Set<number>>(new Set());
   const [activeNode, setActiveNode]     = useState<string | null>(null);
+  const [introWord, setIntroWord]       = useState<"juritas" | "atlas">("juritas");
+  const [showIntro, setShowIntro]       = useState(false);
   const [showKnowledge, setShowKb]      = useState(false);
   const [absorbedDocs, setAbsorbedDocs] = useState<KnowledgeDoc[]>([]);
 
@@ -146,6 +148,17 @@ export default function Home() {
 
   // ── Session init ──────────────────────────────────────────────────
   useEffect(() => { setSession(loadSession()); }, []);
+
+  // ── Juritas → Atlas intro — runs once per browser session ─────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("atlas_intro")) return;
+    setShowIntro(true);
+    const t1 = setTimeout(() => setIntroWord("atlas"), 1600);
+    const t2 = setTimeout(() => setShowIntro(false), 3200);
+    sessionStorage.setItem("atlas_intro", "1");
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
 
   // ── Knowledge docs — persisted globally across sessions ───────────
   useEffect(() => {
@@ -282,22 +295,22 @@ export default function Home() {
 
       {/* ── WORDMARK ──────────────────────────────────────────────── */}
       {session && (
-        <motion.div className="fixed left-7 top-7 z-50 flex items-center gap-3"
+        <motion.div className="fixed left-7 top-7 z-50 flex flex-col gap-1"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
           transition={{ duration: 1.8 }}
         >
           <button onClick={() => setPhase("landing")}
             className="text-[12px] font-semibold uppercase tracking-[0.18em]
                        text-[#13100D]/52 transition-colors duration-500
-                       hover:text-[#13100D]">
+                       hover:text-[#13100D] text-left">
             Atlas
           </button>
           <AnimatePresence>
             {phase !== "landing" && (
               <motion.span
-                initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -6 }} transition={{ duration: 0.4 }}
-                className="font-mono text-[10px] tracking-[0.2em] text-[#13100D]/22"
+                initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.4 }}
+                className="font-mono text-[9px] tracking-[0.2em] text-[#13100D]/25"
               >
                 {session.shortId}
               </motion.span>
@@ -339,17 +352,19 @@ export default function Home() {
           {/* ══ LANDING ════════════════════════════════════════════ */}
           {phase === "landing" && (
             <motion.div key="landing" {...page}
-              className="flex min-h-screen flex-col justify-center pb-28"
+              className="flex min-h-screen flex-col justify-center pb-28 pt-20"
             >
               <div className="max-w-3xl space-y-12">
 
-                <motion.p
-                  className="text-[10px] font-medium uppercase tracking-[0.38em] text-[#13100D]/38"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  transition={{ duration: 1.1, delay: 0.3 }}
-                >
-                  Contractual intelligence
-                </motion.p>
+                {/* Label + headline grouped tightly together */}
+                <div className="space-y-5">
+                  <motion.p
+                    className="text-[13px] font-medium uppercase tracking-[0.32em] text-[#13100D]/45"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    transition={{ duration: 1.1, delay: 0.3 }}
+                  >
+                    Contractual intelligence
+                  </motion.p>
 
                 <motion.h1
                   initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}
@@ -364,6 +379,7 @@ export default function Home() {
                     contains asymmetry.
                   </span>
                 </motion.h1>
+                </div>{/* end label + headline group */}
 
                 <motion.p
                   className="max-w-[440px] text-[1.18rem] font-light leading-[1.85] text-[#13100D]/58"
@@ -1081,6 +1097,82 @@ export default function Home() {
 
         </AnimatePresence>
       </main>
+
+      {/* ── JURITAS → ATLAS INTRO ────────────────────────────────── */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div
+            className="fixed inset-0 z-[200] flex items-center justify-center
+                       bg-[#F4F1EC]"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.9, ease: E, delay: 0.2 } }}
+          >
+            {/* Same ambient orbs so the background feels continuous */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="orb-breathe absolute -top-64 -left-28 h-[900px] w-[900px]
+                              rounded-full bg-amber-100/42 blur-[200px]" />
+              <div className="absolute -top-20 right-[1%] h-[640px] w-[640px]
+                              rounded-full bg-stone-200/30 blur-[180px]" />
+            </div>
+
+            <div className="relative flex items-center justify-center"
+              style={{ minWidth: "12ch", height: "1.2em" }}>
+              <AnimatePresence mode="wait">
+                {introWord === "juritas" ? (
+                  <motion.div
+                    key="juritas"
+                    className="flex"
+                    exit={{ opacity: 0, y: -10, filter: "blur(6px)",
+                             transition: { duration: 0.55, ease: E } }}
+                  >
+                    {"Juritas".split("").map((ch, i) => (
+                      <motion.span
+                        key={i}
+                        className="text-[clamp(3.2rem,7vw,6rem)] font-light
+                                   tracking-[-0.04em] text-[#13100D]"
+                        initial={{ opacity: 0, y: 14, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                        transition={{ duration: 0.5, delay: i * 0.07, ease: E }}
+                      >
+                        {ch}
+                      </motion.span>
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="atlas"
+                    className="flex"
+                  >
+                    {"Atlas".split("").map((ch, i) => (
+                      <motion.span
+                        key={i}
+                        className="text-[clamp(3.2rem,7vw,6rem)] font-light
+                                   tracking-[-0.04em] text-[#13100D]"
+                        initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                        transition={{ duration: 0.55, delay: i * 0.08, ease: E }}
+                      >
+                        {ch}
+                      </motion.span>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Juritas sub-label fades in below, exits early */}
+            <motion.p
+              className="absolute bottom-[44%] text-[10px] font-medium uppercase
+                         tracking-[0.36em] text-[#13100D]/30"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: introWord === "juritas" ? 1 : 0 }}
+              transition={{ duration: 0.5, delay: introWord === "juritas" ? 0.7 : 0 }}
+            >
+              Juritas platform
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── KNOWLEDGE OVERLAY ─────────────────────────────────────── */}
       <AnimatePresence>
