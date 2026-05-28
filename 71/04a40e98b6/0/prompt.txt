@@ -1,0 +1,1 @@
+Given there will be an ongoing responsibility to review and add to the knowledge hub, there should likely be administrative access, where an admin can view all uploaded documents, and access content/delete etc
