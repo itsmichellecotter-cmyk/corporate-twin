@@ -1,0 +1,1 @@
+The words 'contractual intelligence' on home page are far too close to the header - they are almost touching the edge of the page. Lower the words closer to the hero and increase size.
