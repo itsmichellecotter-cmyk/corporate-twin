@@ -1,825 +1,1006 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
 
-type SimulationId =
-  | "gdpr"
-  | "cyber"
-  | "supplier"
-  | "audit"
-  | "aiGovernance"
-  | "insider";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type SimulationStep = {
-  title: string;
-  description: string;
-};
+type Phase =
+  | "landing"
+  | "workspace"
+  | "upload"
+  | "ingesting"
+  | "map"
+  | "insight"
+  | "intelligence";
 
-type SimulationFlow = {
-  id: SimulationId;
-  title: string;
-  subtitle: string;
-  trigger: string;
-  reasoning: string;
-  dependencies: string;
-  exposure: string;
-  propagation: string;
-  consequences: string;
-  interventions: string;
-  metrics: Array<{ label: string; value: string }>;
-  relationships: string[];
-};
+type ContractType = "employment" | "rental" | "freelance" | "service" | "other";
 
-const sourceList = [
-  "Contracts",
-  "Vendor agreements",
-  "Policies",
-  "Compliance docs",
-  "Governance frameworks",
-  "Cyber requirements",
+interface AnalyzedContract {
+  id: string;
+  name: string;
+  type: ContractType;
+  uploadedAt: number;
+  obligationCount: number;
+  vulnerabilityCount: number;
+}
+
+interface UserSession {
+  id: string;
+  shortId: string;
+  createdAt: number;
+  contracts: AnalyzedContract[];
+}
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+
+const obligations = [
+  { id: "noncompete",  label: "Non-compete",          detail: "18 months · 50-mile radius", risk: "high",   x: 50, y: 10 },
+  { id: "ip",          label: "IP assignment",         detail: "All work product",            risk: "high",   x: 80, y: 22 },
+  { id: "autorenewal", label: "Auto-renewal",          detail: "12-month cycles",             risk: "medium", x: 82, y: 58 },
+  { id: "termination", label: "Termination",           detail: "14 days notice",              risk: "medium", x: 62, y: 86 },
+  { id: "arbitration", label: "Arbitration",           detail: "No class action",             risk: "medium", x: 25, y: 82 },
+  { id: "amendment",   label: "Unilateral amendments", detail: "No consent required",         risk: "high",   x: 16, y: 44 },
+] as const;
+
+// Primary clauses (appear first, prominent) and secondary (fill in after)
+const primaryClauses  = ["Non-compete clause", "IP assignment", "Unilateral amendments"];
+const secondaryClauses = [
+  "Termination without cause", "Auto-renewal", "Arbitration required",
+  "Confidentiality", "Governing law", "Force majeure",
+  "Indemnification", "Data processing rights", "Notice: 14 days",
 ];
 
-const graphNodes = [
-  "Vendors",
-  "Obligations",
-  "Policies",
-  "Business units",
-  "Regulatory framework",
-  "Dependencies",
+const globalPatterns = [
+  {
+    id: "term",
+    category: "Employment",
+    count: 847,
+    headline: "Termination asymmetry is the most common hidden exposure",
+    detail: "7 of 10 employment agreements give employers a 14-day exit window while requiring 30+ days from employees.",
+    rising: true,
+  },
+  {
+    id: "noncompete",
+    category: "Employment",
+    count: 312,
+    headline: "Non-compete durations have grown 34% since 2022",
+    detail: "The average clause has extended from 9 to 14 months across uploaded agreements. 18-month clauses are now common.",
+    rising: true,
+  },
+  {
+    id: "unilateral",
+    category: "Service",
+    count: 205,
+    headline: "Unilateral amendment rights appear in 12% of agreements",
+    detail: "Disproportionately common in SaaS and service contracts — and rarely disclosed clearly to signatories.",
+    rising: false,
+  },
+  {
+    id: "ip",
+    category: "Employment",
+    count: 634,
+    headline: "IP clauses routinely exceed employment scope",
+    detail: "94% of uploaded employment agreements assign all work product — including personal projects — to the employer.",
+    rising: true,
+  },
+] as const;
+
+const knowledgeDocs = [
+  "EU Directive 2019/1023 — Restructuring",
+  "UK Employment Rights Act 1996",
+  "California AB5 — Worker Classification",
 ];
 
-const resultSignal = {
-  title: "Vendor exposure has become the dominant operational signal.",
-  summary:
-    "The system surfaces one urgent path through policy, contract, and operations—this is the signal the enterprise must act on first.",
-  details: [
-    "A vulnerable vendor cluster now anchors the primary escalation path.",
-    "GDPR risk is traced through obligations, controls and delivery teams.",
-    "This is not a dashboard; it is the company speaking through a single live signal.",
-  ],
+// ─── Session ──────────────────────────────────────────────────────────────────
+
+function generateShortId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function loadSession(): UserSession {
+  if (typeof window === "undefined") {
+    return { id: "ssr", shortId: "000000", createdAt: 0, contracts: [] };
+  }
+  try {
+    const raw = localStorage.getItem("atlas_session");
+    if (raw) return JSON.parse(raw) as UserSession;
+  } catch {}
+  const s: UserSession = {
+    id: `atlas_${Date.now()}`,
+    shortId: generateShortId(),
+    createdAt: Date.now(),
+    contracts: [],
+  };
+  localStorage.setItem("atlas_session", JSON.stringify(s));
+  return s;
+}
+
+function persistSession(s: UserSession) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("atlas_session", JSON.stringify(s));
+  }
+}
+
+// ─── Motion ───────────────────────────────────────────────────────────────────
+
+const EASE = [0.22, 0.1, 0.28, 1.0] as [number, number, number, number];
+
+const page = {
+  initial:    { opacity: 0, y: 32, filter: "blur(6px)" },
+  animate:    { opacity: 1, y: 0,  filter: "blur(0px)" },
+  exit:       { opacity: 0, y: -20, filter: "blur(4px)" },
+  transition: { duration: 0.92, ease: EASE },
 };
 
-const vulnerabilityStream = [
-  {
-    title: "Vendor certification expired",
-    description:
-      "A supplier’s lapse weakens compliance posture and makes their cluster the first escalation node.",
-    relation:
-      "This exposure is tied directly to contract renewal obligations and operational dependency.",
-  },
-  {
-    title: "Data processing conflict detected",
-    description:
-      "A new processing path conflicts with existing policy commitments, creating a cascading regulatory signal.",
-    relation:
-      "The issue connects policy, business unit ownership, and downstream vendor controls.",
-  },
-  {
-    title: "AI governance policy violated",
-    description:
-      "An automated system has deviated from internal governance rules, elevating model risk into the enterprise twin.",
-    relation:
-      "The signal bridges AI systems, audit frameworks, and response obligations.",
-  },
-];
-
-const simulationFlows: SimulationFlow[] = [
-  {
-    id: "gdpr",
-    title: "GDPR Investigation",
-    subtitle: "A regulatory inquiry surfaces cross-border vendor and retention risk.",
-    trigger: "A European data access request activates a compliance investigation through customer data processors.",
-    reasoning:
-      "The twin maps expired DPAs, uncontrolled transfer paths, and retention policy conflicts into one operational escalation path.",
-    dependencies:
-      "Vendor processors, customer service systems, a European marketing stack, and business unit data owners are all connected through the same unresolved obligation.",
-    exposure:
-      "This issue exposes the enterprise to regulator engagement, contract penalties, and reputational impact across two EU business units.",
-    propagation:
-      "Unauthorized data movement ripples through vendor controls, incident response, and legal coordination layers.",
-    consequences:
-      "Potential investigation, customer notification requirements, and a tightened audit scope across connected systems.",
-    interventions:
-      "Renew or isolate the expiring DPAs, block the cross-border transfer path, and align the retention policy with the operational data flow.",
-    metrics: [
-      { label: "Vendor processors in scope", value: "5" },
-      { label: "Policy conflict points", value: "3" },
-      { label: "Estimated exposure window", value: "48h" },
-    ],
-    relationships: [
-      "Expired DPA → EU marketing systems",
-      "Retention policy gap → customer data archive",
-      "Vendor processor access → two business units",
-    ],
-  },
-  {
-    id: "cyber",
-    title: "Cybersecurity Breach",
-    subtitle: "A supplier compromise drives an operational breach through vendor access.",
-    trigger: "A third-party support vendor is breached while maintaining access to a customer-facing operations platform.",
-    reasoning:
-      "The twin links vendor access rights, identity federation, and SOC monitoring to reveal how a breach can extend into core operations.",
-    dependencies:
-      "Support credentials, shared logging systems, and vendor-maintained integration points define the attack surface.",
-    exposure:
-      "Credential exposure threatens customer systems, incident response obligations, and partner SLAs.",
-    propagation:
-      "The breach signal travels from security controls into service delivery, operations teams, and contract obligations.",
-    consequences:
-      "Operational slowdown, forced vendor revocation, and a widened recovery scope across infrastructure and business workflows.",
-    interventions:
-      "Quarantine the compromised vendor access, isolate the affected systems, and prioritize remediation for the exposed dependency path.",
-    metrics: [
-      { label: "Access paths exposed", value: "4" },
-      { label: "Critical systems at risk", value: "2" },
-      { label: "Control gaps found", value: "3" },
-    ],
-    relationships: [
-      "Vendor breach → shared identity provider",
-      "Support credentials → customer operations platform",
-      "Security control gap → delayed detection",
-    ],
-  },
-  {
-    id: "supplier",
-    title: "Supplier Failure",
-    subtitle: "A disrupted supplier delivery cascades through product and compliance dependencies.",
-    trigger: "A critical supplier misses a delivery milestone for a vendor-managed component tied to customer contracts.",
-    reasoning:
-      "The twin traces the supplier's contractual milestone, logistics handoffs, and downstream delivery obligations into a high-risk path.",
-    dependencies:
-      "Logistics providers, manufacturing schedules, customer commitments, and vendor SLAs are all linked through the same failed path.",
-    exposure:
-      "Delivery delay creates breach risk across commercial obligations and forces operational shift into contingency mode.",
-    propagation:
-      "The failure signal flows from procurement to engineering, sales, and customer success teams.",
-    consequences:
-      "Revenue impact, reputational pressure, and emergency sourcing costs become the operational focus.",
-    interventions:
-      "Activate alternate supply, negotiate recovery terms, and align internal handoffs around the impacted delivery corridor.",
-    metrics: [
-      { label: "SLA milestones missed", value: "2" },
-      { label: "Business units affected", value: "3" },
-      { label: "Contingency tasks opened", value: "5" },
-    ],
-    relationships: [
-      "Supplier failure → product delivery chain",
-      "Contract milestone → customer commitment",
-      "Logistics delay → engineering handoff",
-    ],
-  },
-  {
-    id: "audit",
-    title: "Regulatory Audit",
-    subtitle: "A surprise audit tests governance evidence and operating controls.",
-    trigger: "An unplanned audit request targets the firm's European compliance posture and evidence trails.",
-    reasoning:
-      "The twin assembles controls, ownership, and evidence sources to reveal where governance readiness is weakest.",
-    dependencies:
-      "Control owners, archived evidence, policy enforcement logs, and cross-border data sources define audit exposure.",
-    exposure:
-      "Missing evidence and weak controls concentrate audit risk into a narrow operational escalation path.",
-    propagation:
-      "Audit findings move from compliance into legal, operations, and executive governance channels.",
-    consequences:
-      "Corrective action, remediation workload, and governance reputation erosion are the likely outcomes.",
-    interventions:
-      "Assign evidence owners, shore up missing controls, and coordinate the audit response across the affected teams.",
-    metrics: [
-      { label: "Evidence gaps", value: "4" },
-      { label: "Control owners engaged", value: "6" },
-      { label: "Audit hotspots", value: "2" },
-    ],
-    relationships: [
-      "Policy enforcement → evidence archive",
-      "Control owner → compliance operations",
-      "Audit request → cross-border data sources",
-    ],
-  },
-  {
-    id: "aiGovernance",
-    title: "AI Governance Violation",
-    subtitle: "A deployed model is operating outside its approved governance corridor.",
-    trigger: "A marketing AI model begins using customer data in a way that violates internal policy guardrails.",
-    reasoning:
-      "The twin links model usage, data provenance, and governance approval workflows to expose the violation path.",
-    dependencies:
-      "Data labeling, deployment environment, vendor-managed tooling, and approval workflows all contribute to the failure.",
-    exposure:
-      "Policy non-compliance now threatens brand risk, customer trust, and governance escalation.",
-    propagation:
-      "The violation travels through model operations, legal oversight, and vendor-managed data flows.",
-    consequences:
-      "Model rollback, control remediation, and a governance review become the operational response.",
-    interventions:
-      "Contain the model, enforce approval checkpoints, and update the governance workflow with the new operational dependency map.",
-    metrics: [
-      { label: "Policy breaches detected", value: "1" },
-      { label: "Operational systems affected", value: "2" },
-      { label: "Governance reviews required", value: "1" },
-    ],
-    relationships: [
-      "Model usage → customer data path",
-      "Approval gap → deployment environment",
-      "Vendor tooling → governance workflow",
-    ],
-  },
-  {
-    id: "insider",
-    title: "Insider Risk Scenario",
-    subtitle: "An internal actor moves sensitive vendor data outside approved controls.",
-    trigger: "A business unit user downloads and shares vendor-sensitive material in a location outside the approved access policy.",
-    reasoning:
-      "The twin shows how team permissions, vendor agreements, and operational handoffs create a weak control path.",
-    dependencies:
-      "Access control, audit logging, vendor data scope, and business unit workflows form the exposure chain.",
-    exposure:
-      "Unauthorized vendor data disclosure creates a silent governance drift and operational fragility.",
-    propagation:
-      "The risk signal propagates from security into functional operations and contract oversight.",
-    consequences:
-      "Investigation, policy revision, and control hardening become the coordinated response.",
-    interventions:
-      "Revoke access, verify vendor scope, and tighten onboarding controls for the relevant teams.",
-    metrics: [
-      { label: "Unauthorized actions detected", value: "1" },
-      { label: "Vendor exposure points", value: "2" },
-      { label: "Control reviews triggered", value: "1" },
-    ],
-    relationships: [
-      "User access → vendor-sensitive material",
-      "Audit logging → control gap",
-      "Operational handoff → policy drift",
-    ],
-  },
-];
-
-const pageMotion = {
-  initial: { opacity: 0, y: 18 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
-  transition: { duration: 0.7, ease: "easeOut" },
-};
-
-const buttonStyles =
-  "inline-flex items-center justify-center rounded-full bg-slate-950/5 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-950/10 ring-1 ring-slate-900/10";
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [phase, setPhase] = useState<"landing" | "ingest" | "twin" | "simulate" | "vulnerability" | "result">("landing");
-  const [selectedSimulation, setSelectedSimulation] = useState<SimulationId>("gdpr");
+  const [phase, setPhase]             = useState<Phase>("landing");
+  const [session, setSession]         = useState<UserSession | null>(null);
+  const [file, setFile]               = useState<File | null>(null);
+  const [dragging, setDragging]       = useState(false);
+  const [progress, setProgress]       = useState(0);
+  const [primaryVisible, setPrimary]  = useState<number[]>([]);
+  const [secondaryVisible, setSecondary] = useState<number[]>([]);
+  const [showKnowledge, setShowKnowledge]     = useState(false);
+  const [knowledgeFile, setKnowledgeFile]     = useState<File | null>(null);
+  const [knowledgeAbsorbing, setKnowledgeAbsorbing] = useState(false);
 
-  const activeSimulation = simulationFlows.find((flow) => flow.id === selectedSimulation) ?? simulationFlows[0];
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const kbInputRef  = useRef<HTMLInputElement>(null);
+  // snapshot refs so the ingestion effect can read latest values without dep issues
+  const sessionSnap = useRef<UserSession | null>(null);
+  const fileSnap    = useRef<File | null>(null);
+
+  useEffect(() => { sessionSnap.current = session; }, [session]);
+  useEffect(() => { fileSnap.current = file; }, [file]);
+
+  // Bootstrap session from localStorage once on mount
+  useEffect(() => { setSession(loadSession()); }, []);
+
+  // Ingestion choreography
+  useEffect(() => {
+    if (phase !== "ingesting") return;
+
+    setProgress(0);
+    setPrimary([]);
+    setSecondary([]);
+
+    // Primary clauses: stagger at 320 ms each
+    const pTimers = primaryClauses.map((_, i) =>
+      setTimeout(() => setPrimary(prev => [...prev, i]), 280 + i * 340)
+    );
+
+    // Secondary clauses: start after primaries, tighter stagger
+    const sOffset = 280 + primaryClauses.length * 340 + 200;
+    const sTimers = secondaryClauses.map((_, i) =>
+      setTimeout(() => setSecondary(prev => [...prev, i]), sOffset + i * 160)
+    );
+
+    // Progress bar
+    const progTimer = setInterval(
+      () => setProgress(p => Math.min(p + 1, 100)),
+      36
+    );
+
+    // Advance to map
+    const advance = setTimeout(() => {
+      const snap = sessionSnap.current;
+      const f    = fileSnap.current;
+      if (snap) {
+        const contract: AnalyzedContract = {
+          id: `c_${Date.now()}`,
+          name: f?.name?.replace(/\.[^/.]+$/, "") ?? "Employment Agreement",
+          type: "employment",
+          uploadedAt: Date.now(),
+          obligationCount: 6,
+          vulnerabilityCount: 3,
+        };
+        const updated = { ...snap, contracts: [...snap.contracts, contract] };
+        setSession(updated);
+        persistSession(updated);
+      }
+      setPhase("map");
+    }, 4200);
+
+    return () => {
+      pTimers.forEach(clearTimeout);
+      sTimers.forEach(clearTimeout);
+      clearInterval(progTimer);
+      clearTimeout(advance);
+    };
+  }, [phase]);
+
+  const handleFile = (f: File) => setFile(f);
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  };
+
+  const startNewSession = () => {
+    const s: UserSession = {
+      id: `atlas_${Date.now()}`,
+      shortId: generateShortId(),
+      createdAt: Date.now(),
+      contracts: [],
+    };
+    persistSession(s);
+    setSession(s);
+    setFile(null);
+    setPhase("landing");
+  };
+
+  const absorb = (f: File) => {
+    setKnowledgeFile(f);
+    setKnowledgeAbsorbing(true);
+    setTimeout(() => setKnowledgeAbsorbing(false), 3200);
+  };
+
+  const contractName =
+    file?.name?.replace(/\.[^/.]+$/, "") ??
+    session?.contracts.at(-1)?.name ??
+    "Employment Agreement";
+
+  const totalAnalyzed = 2847 + (session?.contracts.length ?? 0);
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f6f2eb] text-slate-950">
-      <motion.div
-        className="ambient-light"
-        animate={{ opacity: [0.3, 0.55, 0.3] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <div className="absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_15%_15%,rgba(203,139,70,0.16),transparent_24%),radial-gradient(circle_at_80%_18%,rgba(79,129,255,0.08),transparent_19%)] pointer-events-none" />
-      <div className="absolute right-0 top-28 h-[320px] w-[320px] -translate-x-1/3 rounded-full bg-slate-950/5 blur-3xl opacity-80 pointer-events-none" />
+    <div className="relative min-h-screen bg-[#F8F6F2] text-[#171310]">
 
-      <main className="relative z-10 mx-auto min-h-screen max-w-[1400px] px-6 py-8 sm:px-8 lg:px-12">
-        <motion.button
-          type="button"
-          className="absolute left-6 top-6 inline-flex items-center gap-3 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_20px_80px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/10 backdrop-blur-sm"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setPhase("landing")}
+      {/* ── Ambient atmosphere ────────────────────────────────────────── */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <motion.div
+          className="absolute -top-64 -left-24 h-[720px] w-[720px] rounded-full bg-amber-100/42 blur-[160px]"
+          animate={{ scale: [1, 1.07, 1], opacity: [0.42, 0.62, 0.42] }}
+          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -top-16 right-[4%] h-[520px] w-[520px] rounded-full bg-stone-200/30 blur-[140px]"
+          animate={{ scale: [1, 1.05, 1], opacity: [0.25, 0.42, 0.25] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+        />
+        <motion.div
+          className="absolute bottom-0 left-[28%] h-[400px] w-[400px] rounded-full bg-amber-50/50 blur-[110px]"
+          animate={{ y: [0, -22, 0], opacity: [0.32, 0.52, 0.32] }}
+          transition={{ duration: 24, repeat: Infinity, ease: "easeInOut", delay: 9 }}
+        />
+      </div>
+
+      {/* ── Session wordmark ──────────────────────────────────────────── */}
+      {session && (
+        <motion.div
+          className="fixed left-7 top-7 z-50 flex items-center gap-2.5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1.4 }}
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/5 text-sm font-bold text-slate-950">JS</span>
-          <span>Juritas Signal</span>
-        </motion.button>
-
-        <div className="relative flex min-h-[calc(100vh-4rem)] items-center">
-          <motion.div
-            initial={{ opacity: 0.92, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.85, ease: "easeOut" }}
-            className="relative w-full overflow-hidden rounded-[48px] bg-white/80 p-10 shadow-[0_60px_120px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5 backdrop-blur-xl"
+          <button
+            onClick={() => setPhase("landing")}
+            className="text-sm font-medium uppercase tracking-[0.15em] text-[#171310]/42 transition-colors duration-500 hover:text-[#171310]"
           >
-            <div className="absolute inset-y-0 right-0 hidden w-1/2 rounded-l-[48px] bg-gradient-to-l from-[#fffaf2] to-transparent opacity-70 sm:block" />
-            <div className="relative grid gap-10 lg:grid-cols-[0.70fr_0.30fr]">
-              <div className="space-y-10">
-                <motion.div
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="max-w-2xl space-y-5"
+            Atlas
+          </button>
+          <AnimatePresence>
+            {phase !== "landing" && (
+              <motion.span
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -4 }}
+                transition={{ duration: 0.4 }}
+                className="font-mono text-[11px] tracking-widest text-[#171310]/22"
+              >
+                {session.shortId}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
+
+      {/* ── Top-right nav ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {phase !== "landing" && session && (
+          <motion.div
+            className="fixed right-7 top-7 z-50 flex items-center gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <button
+              onClick={() => setShowKnowledge(true)}
+              className="text-[11px] uppercase tracking-[0.22em] text-[#171310]/25 transition-colors hover:text-[#171310]/55"
+            >
+              Knowledge
+            </button>
+            {session.contracts.length > 0 && (
+              <button
+                onClick={() => setPhase("workspace")}
+                className="text-[11px] uppercase tracking-[0.22em] text-[#171310]/25 transition-colors hover:text-[#171310]/55"
+              >
+                {session.contracts.length}{" "}
+                {session.contracts.length === 1 ? "agreement" : "agreements"}
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Main ──────────────────────────────────────────────────────── */}
+      <main className="relative z-10 mx-auto max-w-5xl px-6 sm:px-10 lg:px-14">
+        <AnimatePresence mode="wait">
+
+          {/* LANDING ─────────────────────────────────────────────────── */}
+          {phase === "landing" && (
+            <motion.div key="landing" {...page}
+              className="flex min-h-screen flex-col justify-center pb-24"
+            >
+              <div className="max-w-3xl space-y-12">
+                <div className="space-y-4">
+                  <motion.p
+                    className="text-[11px] uppercase tracking-[0.35em] text-[#171310]/30"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                  >
+                    Contractual intelligence
+                  </motion.p>
+                  <motion.h1
+                    className="text-[clamp(3rem,7.5vw,5.75rem)] font-extralight leading-[1.04] tracking-[-0.048em] text-[#171310]"
+                    initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1.15, delay: 0.42, ease: EASE }}
+                  >
+                    What is your contract
+                    <br />
+                    <span className="text-[#171310]/28">actually doing to you.</span>
+                  </motion.h1>
+                </div>
+
+                <motion.p
+                  className="max-w-[460px] text-xl font-light leading-[1.8] text-[#171310]/42"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.72 }}
                 >
-                  <p className="text-xs uppercase tracking-[0.32em] text-slate-500">
-                    Ambient institutional intelligence
+                  Atlas reads obligations, asymmetries, and hidden dependencies inside your agreements — and tells you what they mean.
+                </motion.p>
+
+                <motion.div
+                  className="flex flex-wrap items-center gap-6"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 1.05 }}
+                >
+                  <button
+                    onClick={() => setPhase("upload")}
+                    className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                  >
+                    Upload an agreement
+                    <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+                  </button>
+                  {(session?.contracts.length ?? 0) > 0 && (
+                    <button
+                      onClick={() => setPhase("workspace")}
+                      className="text-sm text-[#171310]/35 transition-colors hover:text-[#171310]/62"
+                    >
+                      Your workspace
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* Collective intelligence teaser */}
+                <motion.div
+                  className="max-w-[520px] space-y-3 border-t border-[#171310]/6 pt-10"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 1.38 }}
+                >
+                  <p className="text-[10px] uppercase tracking-[0.32em] text-[#171310]/22">
+                    Collective intelligence · {totalAnalyzed.toLocaleString()} agreements
                   </p>
-                  <h1 className="text-4xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-5xl">
-                    Looking into the living nervous system of the institution.
-                  </h1>
-                  <p className="text-lg leading-8 text-slate-600 sm:text-xl">
-                    Juritas Signal surfaces the single operating path that matters now, with calm editorial clarity and no dashboard clutter.
+                  <p className="text-[13px] font-light leading-7 text-[#171310]/35">
+                    7 of 10 employment agreements contain asymmetrical termination protections. Non-compete durations have grown 34% since 2022.
+                  </p>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* WORKSPACE ───────────────────────────────────────────────── */}
+          {phase === "workspace" && (
+            <motion.div key="workspace" {...page}
+              className="min-h-screen space-y-16 py-28"
+            >
+              <motion.div className="max-w-xl space-y-4"
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.9, ease: EASE }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">Your workspace</p>
+                <h2 className="text-5xl font-extralight tracking-[-0.04em] text-[#171310] sm:text-6xl">
+                  Session {session?.shortId}
+                </h2>
+                <p className="text-lg font-light text-[#171310]/42">
+                  {session?.contracts.length
+                    ? `${session.contracts.length} agreement${session.contracts.length > 1 ? "s" : ""} analyzed. Your data is private to this session.`
+                    : "No agreements yet. Upload your first to begin."}
+                </p>
+              </motion.div>
+
+              {/* Contract list */}
+              {(session?.contracts.length ?? 0) > 0 && (
+                <div className="max-w-xl">
+                  {session!.contracts.map((c, i) => (
+                    <motion.div key={c.id}
+                      className="flex items-center justify-between border-b border-[#171310]/5 py-7 first:border-t first:border-t-[#171310]/5"
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: i * 0.08 }}
+                    >
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-[#171310]">{c.name}</p>
+                        <p className="text-xs text-[#171310]/32">
+                          {c.obligationCount} obligations · {c.vulnerabilityCount} vulnerabilities
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setPhase("map")}
+                        className="text-xs text-[#171310]/28 transition-colors hover:text-[#171310]/60"
+                      >
+                        View →
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              <motion.div className="flex flex-wrap items-center gap-6"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.4 }}
+              >
+                <button
+                  onClick={() => setPhase("upload")}
+                  className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                >
+                  Upload agreement
+                  <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+                </button>
+                <button
+                  onClick={() => setPhase("intelligence")}
+                  className="text-sm text-[#171310]/35 transition-colors hover:text-[#171310]/62"
+                >
+                  Collective intelligence →
+                </button>
+                <button
+                  onClick={startNewSession}
+                  className="text-sm text-[#171310]/22 transition-colors hover:text-[#171310]/45"
+                >
+                  New session
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* UPLOAD ──────────────────────────────────────────────────── */}
+          {phase === "upload" && (
+            <motion.div key="upload" {...page}
+              className="flex min-h-screen flex-col justify-center pb-24"
+            >
+              <div className="w-full max-w-xl space-y-12">
+                <div className="space-y-5">
+                  <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">Upload</p>
+                  <h2 className="text-5xl font-extralight tracking-[-0.04em] text-[#171310] sm:text-6xl">
+                    Your agreement.
+                  </h2>
+                  <p className="text-lg font-light leading-[1.8] text-[#171310]/42">
+                    Employment, rental, freelance, service — Atlas reads any agreement and surfaces what it asks of you.
+                  </p>
+                </div>
+
+                <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                />
+
+                {/* Drop zone — very minimal */}
+                <motion.div
+                  onDrop={onDrop}
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onClick={() => inputRef.current?.click()}
+                  animate={{
+                    backgroundColor: dragging
+                      ? "rgba(184,145,110,0.05)"
+                      : file ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.48)",
+                    borderColor: dragging
+                      ? "rgba(184,145,110,0.38)"
+                      : file ? "rgba(23,19,16,0.12)" : "rgba(23,19,16,0.065)",
+                  }}
+                  transition={{ duration: 0.32 }}
+                  className="relative cursor-pointer overflow-hidden rounded-[26px] border px-10 py-[52px] backdrop-blur-sm"
+                >
+                  <AnimatePresence mode="wait">
+                    {file ? (
+                      <motion.div key="sel"
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.38 }}
+                        className="flex items-center gap-5"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#171310]/5">
+                          <svg width="13" height="16" viewBox="0 0 13 16" fill="none">
+                            <path d="M7.5 1H2.5C2 1 1.5 1.4 1.5 2v12c0 .6.4 1 1 1h9c.6 0 1-.4 1-1V5.5L7.5 1z"
+                              stroke="#171310" strokeWidth="0.9" strokeLinejoin="round" opacity=".42"/>
+                            <path d="M7.5 1v4.5H12" stroke="#171310" strokeWidth="0.9" strokeLinejoin="round" opacity=".42"/>
+                          </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-[#171310]">{file.name}</p>
+                          <p className="mt-0.5 text-xs text-[#171310]/32">{(file.size / 1024).toFixed(0)} KB</p>
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); setFile(null); }}
+                          className="text-lg leading-none text-[#171310]/20 transition-colors hover:text-[#171310]/48"
+                        >×</button>
+                      </motion.div>
+                    ) : (
+                      <motion.div key="empty"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.28 }}
+                        className="text-center"
+                      >
+                        <p className="text-xl font-extralight text-[#171310]/22">Drop your contract here</p>
+                        <p className="mt-2 text-xs text-[#171310]/18">PDF · DOCX · TXT · or click to browse</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+
+                <div className="flex flex-wrap items-center gap-5">
+                  <AnimatePresence>
+                    {file && (
+                      <motion.button
+                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        transition={{ duration: 0.42 }}
+                        onClick={() => setPhase("ingesting")}
+                        className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                      >
+                        Analyze
+                        <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                  <button
+                    onClick={() => setPhase("ingesting")}
+                    className="text-sm text-[#171310]/25 transition-colors hover:text-[#171310]/50"
+                  >
+                    Use demo agreement
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* INGESTING ───────────────────────────────────────────────── */}
+          {phase === "ingesting" && (
+            <motion.div key="ingesting" {...page}
+              className="flex min-h-screen flex-col justify-center pb-24"
+            >
+              <div className="w-full max-w-2xl space-y-16">
+                <div className="space-y-4">
+                  <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">Analysis</p>
+                  <h2 className="text-5xl font-extralight tracking-[-0.04em] text-[#171310] sm:text-6xl">
+                    Atlas is reading.
+                  </h2>
+                </div>
+
+                {/* Clause extraction — cinematic typographic emergence */}
+                <div className="space-y-6">
+                  {/* Primary clauses — large, appear first */}
+                  <div className="space-y-3">
+                    {primaryClauses.map((clause, i) => (
+                      <AnimatePresence key={clause}>
+                        {primaryVisible.includes(i) && (
+                          <motion.p
+                            initial={{ opacity: 0, x: -12, filter: "blur(4px)" }}
+                            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                            transition={{ duration: 0.65, ease: EASE }}
+                            className="text-xl font-extralight text-[#171310]/85"
+                          >
+                            {clause}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    ))}
+                  </div>
+
+                  {/* Secondary clauses — smaller, drift in after */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-2">
+                    {secondaryClauses.map((clause, i) => (
+                      <AnimatePresence key={clause}>
+                        {secondaryVisible.includes(i) && (
+                          <motion.span
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 0.3, y: 0 }}
+                            transition={{ duration: 0.5, ease: EASE }}
+                            className="text-sm font-light text-[#171310]"
+                          >
+                            {clause}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Progress */}
+                <div className="space-y-3">
+                  <div className="relative h-px w-full overflow-hidden rounded-full bg-[#171310]/6">
+                    <motion.div
+                      className="absolute inset-y-0 left-0 rounded-full bg-[#171310]/20"
+                      style={{ width: `${progress}%` }}
+                      transition={{ duration: 0.04, ease: "linear" }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-[#171310]/28">
+                    {progress < 28 ? "Extracting clauses" :
+                     progress < 58 ? "Mapping obligations" :
+                     progress < 82 ? "Identifying asymmetries" :
+                     "Surfacing vulnerabilities"}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* MAP ─────────────────────────────────────────────────────── */}
+          {phase === "map" && (
+            <motion.div key="map" {...page} className="min-h-screen space-y-16 py-28">
+              <motion.div className="max-w-2xl space-y-5"
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.9, ease: EASE }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">Obligation map</p>
+                <h2 className="text-5xl font-extralight tracking-[-0.04em] text-[#171310] sm:text-6xl">
+                  {contractName}
+                  <br />
+                  <span className="text-[#171310]/28">6 obligations found.</span>
+                </h2>
+                <p className="text-lg font-light leading-[1.8] text-[#171310]/42">
+                  Three carry significant asymmetry. Atlas has traced the full dependency chain.
+                </p>
+              </motion.div>
+
+              {/* Spatial constellation — desktop */}
+              <div className="relative hidden h-[520px] w-full md:block">
+                {/* Connection lines */}
+                <svg className="absolute inset-0 h-full w-full"
+                  viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden
+                >
+                  {obligations.map((o, i) => (
+                    <motion.line key={o.id}
+                      x1="50" y1="50" x2={o.x} y2={o.y}
+                      stroke="rgba(23,19,16,0.05)"
+                      strokeWidth="0.22"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.9, delay: 0.25 + i * 0.12 }}
+                    />
+                  ))}
+                </svg>
+
+                {/* Center anchor */}
+                <div className="absolute" style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}>
+                  <motion.div className="flex flex-col items-center gap-2"
+                    initial={{ opacity: 0, scale: 0.75 }} animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 1, ease: EASE }}
+                  >
+                    <motion.div
+                      className="h-3 w-3 rounded-full bg-[#171310]/12"
+                      animate={{ scale: [1, 1.3, 1], opacity: [0.12, 0.28, 0.12] }}
+                      transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    <p className="whitespace-nowrap text-[9px] uppercase tracking-[0.25em] text-[#171310]/25">
+                      {contractName}
+                    </p>
+                  </motion.div>
+                </div>
+
+                {/* Obligation nodes */}
+                {obligations.map((o, i) => (
+                  <motion.div key={o.id} className="absolute"
+                    style={{ left: `${o.x}%`, top: `${o.y}%`, transform: "translate(-50%,-50%)" }}
+                    initial={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                    transition={{ duration: 0.85, delay: 0.2 + i * 0.11, ease: EASE }}
+                    whileHover={{ scale: 1.1 }}
+                  >
+                    <div className="flex flex-col items-center gap-1.5 text-center">
+                      <motion.div
+                        className={`h-[5px] w-[5px] rounded-full ${o.risk === "high" ? "bg-amber-700/48" : "bg-[#171310]/15"}`}
+                        animate={o.risk === "high"
+                          ? { scale: [1, 1.5, 1], opacity: [0.48, 0.75, 0.48] }
+                          : {}}
+                        transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.5 }}
+                      />
+                      <p className={`whitespace-nowrap text-xs font-medium ${o.risk === "high" ? "text-[#171310]" : "text-[#171310]/45"}`}>
+                        {o.label}
+                      </p>
+                      <p className="whitespace-nowrap text-[9px] text-[#171310]/28">{o.detail}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Mobile list */}
+              <div className="space-y-6 md:hidden">
+                {obligations.map((o, i) => (
+                  <motion.div key={o.id} className="flex items-start gap-4"
+                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.08 }}
+                  >
+                    <div className={`mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full ${o.risk === "high" ? "bg-amber-700/48" : "bg-[#171310]/15"}`} />
+                    <div>
+                      <p className={`text-sm font-medium ${o.risk === "high" ? "text-[#171310]" : "text-[#171310]/45"}`}>{o.label}</p>
+                      <p className="mt-0.5 text-xs text-[#171310]/30">{o.detail}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <motion.button onClick={() => setPhase("insight")}
+                className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 1.0 }}
+                whileHover={{ scale: 0.99 }}
+              >
+                Reveal vulnerability
+                <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+              </motion.button>
+            </motion.div>
+          )}
+
+          {/* INSIGHT ─────────────────────────────────────────────────── */}
+          {phase === "insight" && (
+            <motion.div key="insight" {...page} className="min-h-screen space-y-20 py-28">
+              <motion.div className="max-w-3xl space-y-5"
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.9, ease: EASE }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">Critical finding</p>
+                <h2 className="text-[clamp(2.8rem,6vw,4.6rem)] font-extralight leading-[1.04] tracking-[-0.048em] text-[#171310]">
+                  A pattern in
+                  <br />
+                  this agreement.
+                </h2>
+              </motion.div>
+
+              <div className="max-w-3xl space-y-14">
+                <motion.div className="space-y-6"
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.85, delay: 0.35, ease: EASE }}
+                >
+                  <p className="text-[1.35rem] font-extralight leading-[1.65] text-[#171310]">
+                    Your non-compete extends 18 months beyond industry standard and contains no geographic carve-out for remote work.
+                  </p>
+                  <p className="text-lg font-light leading-[1.8] text-[#171310]/45">
+                    Combined with unilateral amendment rights — a clause allowing the other party to modify this agreement after signing without your consent — this creates a compound vulnerability Atlas sees in approximately 8% of agreements.
                   </p>
                 </motion.div>
 
-                <AnimatePresence mode="wait">
-            {phase === "landing" ? (
-              <motion.div
-                key="landing"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
-              >
-                <div className="space-y-10 text-left">
-                  <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Ambient intelligence</p>
-                  <div className="space-y-6">
-                    <h2 className="text-5xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-6xl">
-                      A living signal that reasons through enterprise complexity.
-                    </h2>
-                    <p className="max-w-2xl text-lg leading-9 text-slate-500">
-                      Not a chatbot, not a summary. Juritas Signal weaves contracts, policies, vendors and operations into a single strategic intelligence surface.
-                    </p>
-                  </div>
-
-                  <motion.div
-                    initial={{ opacity: 0.88, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.65, ease: "easeOut" }}
-                    className="rounded-[32px] border border-slate-200/60 bg-white/75 p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)]"
-                  >
-                    <p className="text-sm leading-7 text-slate-200">
-                      Begin with one signal. The system will build a living operational model, uncover hidden obligations, and surface the path your enterprise must act on first.
-                    </p>
-                  </motion.div>
-
-                  <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                    <motion.button
-                      type="button"
-                      className={buttonStyles}
-                      whileHover={{ y: -1.5 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setPhase("ingest")}
+                <motion.div className="border-t border-[#171310]/5 pt-10"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                >
+                  {[
+                    { label: "Non-compete duration",  yours: "18 months",                             benchmark: "6–12 months typical" },
+                    { label: "Geographic scope",       yours: "50-mile radius · no remote carve-out",  benchmark: "89% include remote exceptions" },
+                    { label: "Amendment rights",       yours: "Unilateral · no notice required",       benchmark: "Only 12% of agreements allow this" },
+                  ].map((row, i) => (
+                    <motion.div key={row.label}
+                      className="grid gap-1.5 border-b border-[#171310]/5 py-6 last:border-b-0 sm:grid-cols-3 sm:items-baseline sm:gap-8"
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.72 + i * 0.09 }}
                     >
-                      Activate twin
-                    </motion.button>
-                    <p className="max-w-2xl text-sm text-slate-400">
-                      Source materials: vendor agreements, policies, governance frameworks and operational delivery intelligence.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ) : phase === "ingest" ? (
-              <motion.div
-                key="ingest"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
-              >
-                <div className="space-y-10">
-                  <div className="max-w-2xl">
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Ingestion</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-                      The signal begins to construct the institution.
-                    </h2>
-                    <p className="mt-5 text-base leading-8 text-slate-500">
-                      Juritas Signal translates contracts, obligations and policies into a coherent operational model that surfaces teams, vendors and dependencies as a single reasoning surface.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0.9, scale: 0.99 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.82, ease: "easeOut" }}
-                      className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                    >
-                      <motion.div
-                        className="absolute left-6 top-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                      <motion.div
-                        className="absolute right-8 bottom-8 h-28 w-28 rounded-full bg-amber-400/10 blur-3xl"
-                        animate={{ y: [0, 10, 0] }}
-                        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                      />
-                      <div className="relative space-y-8">
-                        <div className="space-y-4">
-                          <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Foundational sources</p>
-                          <p className="text-base leading-7 text-slate-200">
-                            The system ingests vendor agreements, policies, governance evidence, and operational delivery data to start building the twin.
-                          </p>
-                        </div>
-                        <div className="space-y-4">
-                          {sourceList.slice(0, 4).map((source, index) => (
-                            <motion.div
-                              key={source}
-                              initial={{ opacity: 0, y: 18 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                            className="rounded-[28px] border border-slate-200/60 bg-slate-50 px-5 py-4 text-sm text-slate-700"
-                            >
-                              {source}
-                            </motion.div>
-                          ))}
-                        </div>
-                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-[#171310]/26">{row.label}</p>
+                      <p className="text-sm font-medium text-[#171310]">{row.yours}</p>
+                      <p className="text-sm text-[#171310]/35">{row.benchmark}</p>
                     </motion.div>
+                  ))}
+                </motion.div>
+              </div>
 
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0.9, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.82, ease: "easeOut" }}
-                      className="rounded-[36px] bg-white/80 p-10 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                    >
-                      <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Operational model</p>
-<p className="mt-4 text-lg font-semibold text-slate-950">A layered model begins to breathe.</p>
-                    <p className="mt-3 text-sm leading-7 text-slate-500">
-                        Contracts, vendor access, policy coverage and team responsibilities are now connected into an emergent institutional surface.
-                      </p>
-
-                      <div className="mt-8 space-y-4">
-                          <div className="rounded-[28px] bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
-                            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Entities discovered</p>
-                            <p className="mt-3 text-xl font-semibold text-slate-950">41</p>
-                          </div>
-                          <div className="rounded-[28px] bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
-                            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Connections forged</p>
-                            <p className="mt-3 text-xl font-semibold text-slate-950">28</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-
-                  <motion.button
-                    type="button"
-                    className={buttonStyles}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setPhase("twin")}
-                  >
-                    Continue
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : phase === "twin" ? (
-              <motion.div
-                key="twin"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
+              <motion.div className="flex flex-wrap items-center gap-6"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 1.1 }}
               >
-                <div className="space-y-10">
-                  <div className="max-w-2xl">
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Operational twin</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-                      The enterprise appears as a living relationship map.
-                    </h2>
-                    <p className="mt-5 text-base leading-8 text-slate-400">
-                      This is an intelligence surface, not another dashboard. Vendors, obligations, policies and operations are connected into a single strategic field.
-                    </p>
-                  </div>
+                <button
+                  onClick={() => setPhase("intelligence")}
+                  className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                >
+                  Collective intelligence
+                  <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+                </button>
+                <button onClick={() => setPhase("workspace")}
+                  className="text-sm text-[#171310]/32 transition-colors hover:text-[#171310]/58">
+                  Your workspace
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
 
-                  <motion.div
-                    className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                    initial={{ opacity: 0.92, scale: 0.99 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.75, ease: "easeOut" }}
+          {/* INTELLIGENCE ────────────────────────────────────────────── */}
+          {phase === "intelligence" && (
+            <motion.div key="intelligence" {...page} className="min-h-screen space-y-20 py-28">
+              <motion.div className="max-w-3xl space-y-5"
+                initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.9, ease: EASE }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.32em] text-[#171310]/28">
+                  Collective intelligence · {totalAnalyzed.toLocaleString()} agreements
+                </p>
+                <h2 className="text-[clamp(2.8rem,6vw,4.6rem)] font-extralight leading-[1.04] tracking-[-0.048em] text-[#171310]">
+                  Patterns emerging
+                  <br />
+                  <span className="text-[#171310]/28">across all agreements.</span>
+                </h2>
+                <p className="text-lg font-light text-[#171310]/42">
+                  Drawn from anonymized analysis across every agreement Atlas has seen. No personal data is ever shared.
+                </p>
+              </motion.div>
+
+              {/* Intelligence stream — editorial, not charts */}
+              <div className="max-w-3xl">
+                {globalPatterns.map((p, i) => (
+                  <motion.div key={p.id}
+                    className="border-b border-[#171310]/5 py-12 last:border-b-0"
+                    initial={{ opacity: 0, y: 18, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    transition={{ duration: 0.75, delay: 0.2 + i * 0.14, ease: EASE }}
                   >
-                    <motion.div
-                      className="absolute left-6 top-6 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <motion.div
-                      className="absolute right-6 bottom-10 h-28 w-28 rounded-full bg-amber-400/10 blur-3xl"
-                      animate={{ y: [0, 10, 0] }}
-                      transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <div className="relative mx-auto grid max-w-2xl gap-8">
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        {graphNodes.slice(0, 3).map((node, index) => (
-                          <motion.div
-                            key={node}
-                            whileHover={{ y: -2, scale: 1.003 }}
-                            animate={{ opacity: [0.85, 1, 0.85], scale: [0.98, 1, 0.98] }}
-                            transition={{ duration: 10, repeat: Infinity, delay: index * 0.7, ease: "easeInOut" }}
-                            className="rounded-[32px] bg-slate-50 px-6 py-5 text-sm text-slate-700 backdrop-blur-sm"
-                          >
-                            {node}
-                          </motion.div>
-                        ))}
+                    <div className="flex items-start gap-8">
+                      <div className="w-20 shrink-0 space-y-1 pt-[3px]">
+                        <p className="text-[9px] uppercase tracking-[0.22em] text-[#171310]/22">{p.category}</p>
+                        <p className="font-mono text-xs text-[#171310]/18 tabular-nums">{p.count.toLocaleString()}</p>
                       </div>
-                      <motion.div
-                        className="mx-auto flex max-w-[360px] flex-col items-center gap-4 rounded-[40px] bg-cyan-500/10 px-8 py-8 text-center shadow-[0_22px_90px_rgba(15,23,42,0.12)]"
-                        animate={{ y: [0, -6, 0] }}
-                        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Core signal</p>
-                        <p className="text-3xl font-semibold text-slate-950">Exposure zone</p>
-                        <p className="max-w-sm text-sm leading-6 text-slate-500">
-                          A strategic center traces risk from vendors through obligations to policy coverage.
+                      <div className="flex-1 space-y-3">
+                        <p className="text-[1.15rem] font-extralight leading-[1.5] text-[#171310]">
+                          {p.headline}
                         </p>
-                      </motion.div>
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        {graphNodes.slice(3).map((node, index) => (
-                          <motion.div
-                            key={node}
-                            whileHover={{ y: -2, scale: 1.003 }}
-                            animate={{ opacity: [0.85, 1, 0.85], scale: [0.98, 1, 0.98] }}
-                            transition={{ duration: 10, repeat: Infinity, delay: 0.5 + index * 0.7, ease: "easeInOut" }}
-                            className="rounded-[32px] bg-white/5 px-6 py-5 text-sm text-slate-200 backdrop-blur-sm"
-                          >
-                            {node}
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.button
-                    type="button"
-                    className={buttonStyles}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setSelectedSimulation("gdpr");
-                      setPhase("simulate");
-                    }}
-                  >
-                    Run scenario
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : phase === "simulate" ? (
-              <motion.div
-                key="simulate"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
-              >
-                <div className="space-y-10">
-                  <div className="max-w-2xl">
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Simulation engine</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-                      Institutional reasoning through scenario flows.
-                    </h2>
-                    <p className="mt-5 max-w-2xl text-base leading-8 text-slate-400">
-                      Every simulation is generated as a living chain of dependencies, exposures, and operational consequences — not a generic answer.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-8 lg:grid-cols-[1.14fr_0.86fr]">
-                    <div className="space-y-6">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {simulationFlows.map((flow) => (
-                          <motion.button
-                            key={flow.id}
-                            type="button"
-                            onClick={() => setSelectedSimulation(flow.id)}
-                            whileHover={{ y: -2 }}
-                            className={`rounded-[28px] border px-5 py-4 text-left transition ${
-                              flow.id === selectedSimulation
-                                ? "border-cyan-400/40 bg-cyan-500/10 text-slate-950"
-                                : "border-slate-200/60 bg-slate-50 text-slate-700 hover:border-slate-300/80 hover:bg-white"
-                            }`}
-                          >
-                            <p className="text-xs uppercase tracking-[0.28em] text-slate-400">{flow.title}</p>
-                            <p className="mt-3 text-sm leading-6 text-slate-200">{flow.subtitle}</p>
-                          </motion.button>
-                        ))}
-                      </div>
-
-                      <motion.div
-                        initial={{ opacity: 0.95, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.7, ease: "easeOut" }}
-                        className="rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                      >
-                        <div className="space-y-6">
-                          <div className="space-y-3">
-                            <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Active scenario</p>
-                            <h3 className="text-3xl font-semibold text-slate-950">{activeSimulation.title}</h3>
-                            <p className="text-sm leading-6 text-slate-500">{activeSimulation.subtitle}</p>
-                          </div>
-
-                          <div className="space-y-4">
-                            {[
-                              { label: "Trigger event", content: activeSimulation.trigger },
-                              { label: "Institutional reasoning", content: activeSimulation.reasoning },
-                              { label: "Dependency tracing", content: activeSimulation.dependencies },
-                              { label: "Exposure identification", content: activeSimulation.exposure },
-                              { label: "Risk propagation", content: activeSimulation.propagation },
-                              { label: "Operational consequence", content: activeSimulation.consequences },
-                            ].map((item) => (
-                            <div key={item.label} className="rounded-[28px] border border-slate-200/60 bg-slate-50 p-5 text-sm text-slate-700 backdrop-blur-sm">
-                              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">{item.label}</p>
-                              <p className="mt-3 leading-7 text-slate-700">{item.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </motion.div>
-                    </div>
-
-                    <div className="space-y-6">
-                      <motion.div
-                        className="rounded-[36px] bg-white/80 p-8 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                        initial={{ opacity: 0.95, x: 24 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.75, ease: "easeOut" }}
-                      >
-                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Institutional graph</p>
-                        <p className="mt-3 text-sm leading-6 text-slate-400">
-                          The twin reasons across teams, vendors, obligations, jurisdictions and systems in one continuous surface.
+                        <p className="text-[15px] font-light leading-7 text-[#171310]/42">
+                          {p.detail}
                         </p>
-                        <div className="mt-6 space-y-3">
-                          {activeSimulation.relationships.map((relation) => (
-                            <div key={relation} className="rounded-[28px] bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                              {relation}
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-
-                      <motion.div
-                        className="rounded-[36px] bg-white/80 p-8 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                        initial={{ opacity: 0.95, x: 24 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.75, ease: "easeOut", delay: 0.05 }}
-                      >
-                        <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Simulation scorecard</p>
-                        <div className="mt-6 space-y-4">
-                          {activeSimulation.metrics.map((metric) => (
-                            <div key={metric.label} className="flex items-center justify-between rounded-[28px] bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                              <span>{metric.label}</span>
-                              <span className="font-semibold text-slate-950">{metric.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    </div>
-                  </div>
-
-                  <motion.button
-                    type="button"
-                    className={buttonStyles}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setPhase("vulnerability")}
-                  >
-                    Reveal vulnerability intelligence
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : phase === "vulnerability" ? (
-              <motion.div
-                key="vulnerability"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
-              >
-                <div className="space-y-10">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.75, ease: "easeOut" }}
-                    className="max-w-2xl"
-                  >
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Vulnerability intelligence</p>
-                    <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-                      Hidden risk becomes a coherent operational stream.
-                    </h2>
-                    <p className="mt-5 text-base leading-8 text-slate-500">
-                      These signals are surfaced as causal relationships and institutional exposure points, not noise. Each insight ties back to the twin’s model.
-                    </p>
-                  </motion.div>
-
-                  <div className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]">
-                    <motion.div
-                      className="absolute left-10 top-24 bottom-10 w-px bg-gradient-to-b from-cyan-400/30 via-transparent to-amber-400/30"
-                      animate={{ opacity: [0.58, 1, 0.58] }}
-                      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <div className="relative mx-auto max-w-2xl space-y-6">
-                      {vulnerabilityStream.map((item, index) => (
-                        <motion.div
-                          key={item.title}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                          whileHover={{ y: -2, scale: 1.005 }}
-                          className="relative flex gap-6 rounded-[32px] bg-white/5 px-6 py-6 backdrop-blur-sm"
-                        >
-                          <div className="mt-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400/20 text-cyan-300 shadow-[0_0_20px_rgba(79,198,255,0.25)]">
-                            <div className="h-2 w-2 rounded-full bg-cyan-300" />
-                          </div>
-                          <div className="space-y-2 text-left">
-                            <p className="text-sm uppercase tracking-[0.28em] text-slate-500">{item.title}</p>
-                            <p className="text-base text-slate-700">{item.description}</p>
-                            <p className="text-sm text-slate-500">{item.relation}</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <motion.button
-                    type="button"
-                    className={buttonStyles}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setPhase("result")}
-                  >
-                    Reveal exposure
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="result"
-                {...pageMotion}
-                layout
-                className="w-full max-w-3xl rounded-[40px] bg-white/5 p-12 shadow-[0_45px_140px_rgba(0,0,0,0.24)] backdrop-blur-3xl"
-              >
-                <div className="space-y-10">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.75, ease: "easeOut" }}
-                    className="max-w-2xl"
-                  >
-                    <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Outcome</p>
-                    <h2 className="mt-3 text-5xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-6xl">
-                      One urgent signal has surfaced.
-                    </h2>
-                    <p className="mt-5 text-lg leading-8 text-slate-400">
-                      The enterprise speaks through a single emergent path. Hidden vendor risk, regulatory exposure, and operational dependency converge into a quiet, unmistakable conclusion.
-                    </p>
-                  </motion.div>
-
-                  <motion.div
-                    className="relative overflow-hidden rounded-[36px] bg-white/80 p-10 text-slate-950 shadow-[0_25px_70px_rgba(15,23,42,0.08)]"
-                    initial={{ opacity: 0.95, scale: 0.99 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.75, ease: "easeOut" }}
-                  >
-                    <motion.div
-                      className="absolute left-10 top-12 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl"
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <motion.div
-                      className="absolute right-10 top-18 h-24 w-24 rounded-full bg-amber-400/10 blur-3xl"
-                      animate={{ y: [0, 10, 0] }}
-                      transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    <motion.div
-                      className="absolute inset-x-12 top-24 h-[1px] bg-gradient-to-r from-cyan-400/30 via-transparent to-amber-400/30"
-                      animate={{ opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                    />
-
-                    <div className="space-y-8">
-                      <div className="rounded-[36px] bg-slate-50 p-10 text-slate-950 backdrop-blur-sm">
-                        <p className="text-sm uppercase tracking-[0.32em] text-slate-500">Signal</p>
-                        <p className="mt-4 text-3xl font-semibold leading-tight text-slate-950">{resultSignal.title}</p>
-                        <p className="mt-4 text-base leading-7 text-slate-500">{resultSignal.summary}</p>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-3">
-                        {resultSignal.details.map((item, index) => (
-                          <motion.div
-                            key={item}
-                            whileHover={{ y: -2, scale: 1.003 }}
-                            initial={{ opacity: 0, y: 18 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.08 * index, duration: 0.55, ease: "easeOut" }}
-                            className="rounded-[32px] bg-slate-50 px-6 py-6 text-sm text-slate-700 backdrop-blur-sm"
+                        {p.rising && (
+                          <motion.p
+                            className="text-[9px] uppercase tracking-[0.25em] text-amber-700/48"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            transition={{ duration: 0.6, delay: 0.5 + i * 0.14 }}
                           >
-                            <p className="text-base leading-7 text-slate-700">{item}</p>
-                          </motion.div>
-                        ))}
+                            Increasing
+                          </motion.p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
+                ))}
+              </div>
 
-                  <motion.button
-                    type="button"
-                    className={buttonStyles}
-                    whileHover={{ y: -1.5 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setPhase("landing")}
-                  >
-                    Restart experience
-                  </motion.button>
-                </div>
+              <motion.div className="flex flex-wrap items-center gap-6"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 1.0 }}
+              >
+                <button
+                  onClick={() => { setFile(null); setPhase("upload"); }}
+                  className="group inline-flex items-center gap-3 rounded-full bg-[#171310] px-8 py-[14px] text-sm font-medium text-[#F8F6F2] transition-all duration-500 hover:bg-[#171310]/80 active:scale-[0.98]"
+                >
+                  Analyze another agreement
+                  <span className="text-[#F8F6F2]/30 transition-transform duration-500 group-hover:translate-x-0.5">→</span>
+                </button>
+                <button onClick={() => setPhase("workspace")}
+                  className="text-sm text-[#171310]/32 transition-colors hover:text-[#171310]/58">
+                  Your workspace
+                </button>
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </main>
+
+      {/* ── Knowledge overlay ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showKnowledge && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            {/* Scrim */}
+            <motion.div
+              className="absolute inset-0 bg-[#F8F6F2]/72 backdrop-blur-2xl"
+              onClick={() => setShowKnowledge(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            />
+
+            {/* Sheet */}
+            <motion.div
+              className="relative z-10 w-full max-w-[560px] overflow-hidden rounded-t-[30px] bg-white/78 px-10 py-12 shadow-[0_-32px_100px_rgba(23,19,16,0.07)] ring-1 ring-[#171310]/6 backdrop-blur-3xl sm:rounded-[30px]"
+              initial={{ opacity: 0, y: 48, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 28, scale: 0.97 }}
+              transition={{ duration: 0.52, ease: EASE }}
+            >
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <p className="text-[10px] uppercase tracking-[0.32em] text-[#171310]/28">Knowledge layer</p>
+                  <h3 className="text-3xl font-extralight tracking-[-0.035em] text-[#171310]">
+                    Atlas absorbs context.
+                  </h3>
+                  <p className="text-[15px] font-light leading-7 text-[#171310]/42">
+                    Upload labor protections, tenant rights, fairness frameworks, or regulatory guidance. Atlas integrates this context into every analysis.
+                  </p>
+                </div>
+
+                <input ref={kbInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) absorb(f); }}
+                />
+
+                <AnimatePresence mode="wait">
+                  {knowledgeAbsorbing ? (
+                    <motion.div key="absorbing"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.35 }}
+                      className="space-y-5 rounded-[20px] bg-[#171310]/3 px-6 py-8"
+                    >
+                      <p className="text-sm font-light text-[#171310]/55">
+                        Absorbing{knowledgeFile ? ` ${knowledgeFile.name}` : ""}
+                      </p>
+                      <div className="relative h-px w-full overflow-hidden rounded-full bg-[#171310]/7">
+                        <motion.div
+                          className="absolute inset-y-0 left-0 h-full rounded-full bg-[#171310]/22"
+                          initial={{ width: "0%" }} animate={{ width: "100%" }}
+                          transition={{ duration: 2.9, ease: [0.2, 0, 0.4, 1] }}
+                        />
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="idle"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      <button
+                        onClick={() => kbInputRef.current?.click()}
+                        className="w-full cursor-pointer rounded-[18px] border border-[#171310]/6 bg-[#171310]/2 px-6 py-7 text-center transition-colors duration-300 hover:bg-[#171310]/4"
+                      >
+                        <p className="text-sm font-light text-[#171310]/32">Upload a knowledge document</p>
+                        <p className="mt-1 text-[11px] text-[#171310]/18">Labor law · Tenant rights · Fairness frameworks</p>
+                      </button>
+
+                      {/* Existing context documents */}
+                      <div className="space-y-2 pt-1">
+                        {knowledgeDocs.map((doc, i) => (
+                          <motion.div key={i}
+                            className="flex items-center gap-3 py-1.5"
+                            initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.4, delay: i * 0.06 }}
+                          >
+                            <div className="h-[3px] w-[3px] rounded-full bg-[#171310]/22 shrink-0" />
+                            <p className="text-xs text-[#171310]/38">{doc}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <button
+                  onClick={() => setShowKnowledge(false)}
+                  className="text-xs text-[#171310]/25 transition-colors hover:text-[#171310]/48"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
