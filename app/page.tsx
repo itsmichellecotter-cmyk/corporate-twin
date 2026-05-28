@@ -11,6 +11,19 @@ type Phase = "landing"|"workspace"|"upload"|"ingesting"|"extract"|"dashboard"|"m
 type ContractType = "employment"|"rental"|"freelance"|"service"|"other";
 interface AnalyzedContract { id:string; name:string; type:ContractType; uploadedAt:number; obligationCount:number; vulnerabilityCount:number; }
 interface UserSession { id:string; shortId:string; createdAt:number; contracts:AnalyzedContract[]; }
+interface FlaggedClause { title:string; body:string; severity:"high"|"med"|"low"; peerMatch:string; }
+interface ContractAnalysis {
+  riskScore: number;
+  summary: string;
+  contractType: string;
+  parties?: { party1?: string; party2?: string };
+  flaggedClauses: FlaggedClause[];
+  clauseBreakdown: Record<string,number>;
+  keyTerms: Record<string,string>;
+  favorableCount: number;
+  unfavorableCount: number;
+  totalClauses: number;
+}
 
 // ─── Content ──────────────────────────────────────────────────────────────────
 
@@ -162,7 +175,7 @@ function AppChrome({ children, code, step, onSignOut, onKnowledge }: { children:
 
 // ─── DeviationChart ───────────────────────────────────────────────────────────
 
-function DeviationChart({ motionEnabled }: { motionEnabled:boolean }) {
+function DeviationChart({ motionEnabled, heroView, onHeroViewChange }: { motionEnabled:boolean; heroView:"deviation"|"similarity"|"ribbons"; onHeroViewChange:(v:"deviation"|"similarity"|"ribbons")=>void }) {
   const nodes = [
     { x:0.05, dev:-0.18, label:"Base Comp",      sev:"ok",   w:14 },
     { x:0.16, dev:-0.10, label:"Variable",        sev:"ok",   w:11 },
@@ -196,12 +209,16 @@ function DeviationChart({ motionEnabled }: { motionEnabled:boolean }) {
           <div style={{ fontSize:13,color:"var(--ink-500)",marginTop:4 }}>Vertical position = deviation from market median. Above the line favors the counterparty.</div>
         </div>
         <div style={{ display:"flex",gap:6 }}>
-          <button style={{ fontSize:12,padding:"6px 12px",border:"1px solid var(--hairline-strong)",borderRadius:999,background:"var(--ink-900)",color:"white" }}>Deviation</button>
-          <button style={{ fontSize:12,padding:"6px 12px",border:"1px solid var(--hairline-strong)",borderRadius:999,color:"var(--ink-700)" }}>Similarity</button>
-          <button style={{ fontSize:12,padding:"6px 12px",border:"1px solid var(--hairline-strong)",borderRadius:999,color:"var(--ink-700)" }}>Ribbons</button>
+          {(["deviation","similarity","ribbons"] as const).map(v=>(
+            <button key={v} onClick={()=>onHeroViewChange(v)} style={{ fontSize:12,padding:"6px 12px",border:"1px solid var(--hairline-strong)",borderRadius:999, background:heroView===v?"var(--ink-900)":"transparent", color:heroView===v?"white":"var(--ink-700)", transition:"all .2s" }}>
+              {v.charAt(0).toUpperCase()+v.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:"block",marginTop:12 }}>
+      {heroView==="similarity"&&<div style={{ marginTop:16 }}><PeerSimilarity motionEnabled={motionEnabled} inline/></div>}
+      {heroView==="ribbons"&&<div style={{ marginTop:16 }}><TermRibbons motionEnabled={motionEnabled} inline/></div>}
+      {heroView==="deviation"&&<svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:"block",marginTop:12 }}>
         <defs>
           <linearGradient id="aboveGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="oklch(62% 0.18 25 / 0.08)"/><stop offset="1" stopColor="oklch(62% 0.18 25 / 0)"/></linearGradient>
           <linearGradient id="belowGrad" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="oklch(68% 0.08 232 / 0.10)"/><stop offset="1" stopColor="oklch(68% 0.08 232 / 0)"/></linearGradient>
@@ -242,16 +259,18 @@ function DeviationChart({ motionEnabled }: { motionEnabled:boolean }) {
             </g>
           );
         })}
-      </svg>
-      <div style={{ display:"flex",gap:20,marginTop:8,fontSize:12,color:"var(--ink-500)" }}>
-        {[["oklch(68% 0.08 232)","Within market"],["oklch(78% 0.13 78)","Review needed"],["oklch(62% 0.18 25)","High deviation"]].map(([c,l])=>(
-          <span key={l} style={{ display:"inline-flex",alignItems:"center",gap:6 }}><span style={{ width:8,height:8,borderRadius:"50%",background:c }}/>{l}</span>
-        ))}
-        <span style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:6 }} className="mono">
-          <span style={{ width:6,height:6,borderRadius:"50%",background:"var(--ice-400)",animation:motionEnabled?"pulse-ring 2s ease-out infinite":"none" }}/>
-          LIVE · benchmarks updated regularly
-        </span>
-      </div>
+      </svg>}
+      {heroView==="deviation"&&(
+        <div style={{ display:"flex",gap:20,marginTop:8,fontSize:12,color:"var(--ink-500)" }}>
+          {[["oklch(68% 0.08 232)","Within market"],["oklch(78% 0.13 78)","Review needed"],["oklch(62% 0.18 25)","High deviation"]].map(([c,l])=>(
+            <span key={l} style={{ display:"inline-flex",alignItems:"center",gap:6 }}><span style={{ width:8,height:8,borderRadius:"50%",background:c }}/>{l}</span>
+          ))}
+          <span style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:6 }} className="mono">
+            <span style={{ width:6,height:6,borderRadius:"50%",background:"var(--ice-400)",animation:motionEnabled?"pulse-ring 2s ease-out infinite":"none" }}/>
+            LIVE · benchmarks updated regularly
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -358,7 +377,7 @@ function ObligationTimeline({ motionEnabled }: { motionEnabled:boolean }) {
 
 // ─── TermRibbons ──────────────────────────────────────────────────────────────
 
-function TermRibbons({ motionEnabled }: { motionEnabled:boolean }) {
+function TermRibbons({ motionEnabled, inline=false }: { motionEnabled:boolean; inline?:boolean }) {
   const terms=[
     { label:"Base compensation", you:0.62, market:0.5 },
     { label:"Variable / bonus",  you:0.45, market:0.5 },
@@ -368,8 +387,8 @@ function TermRibbons({ motionEnabled }: { motionEnabled:boolean }) {
     { label:"Severance",         you:0.30, market:0.5 },
     { label:"Confidentiality",   you:0.52, market:0.5 },
   ];
-  return (
-    <div className="card" style={{ padding:24 }}>
+  const inner = (
+    <div style={{ padding: inline?0:24 }}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end" }}>
         <div><div className="eyebrow">Term comparison ribbons</div><div style={{ fontSize:16,fontWeight:500,marginTop:6 }}>Favorable ↔ unfavorable</div></div>
         <div className="mono" style={{ fontSize:10,color:"var(--ink-500)",letterSpacing:"0.1em" }}>◄ FAVORS YOU · COUNTERPARTY ►</div>
@@ -393,33 +412,50 @@ function TermRibbons({ motionEnabled }: { motionEnabled:boolean }) {
       </div>
     </div>
   );
+  return inline ? inner : <div className="card">{inner}</div>;
 }
 
 // ─── PeerSimilarity ───────────────────────────────────────────────────────────
 
-function PeerSimilarity({ motionEnabled }: { motionEnabled:boolean }) {
+function PeerSimilarity({ motionEnabled, inline=false }: { motionEnabled:boolean; inline?:boolean }) {
   const peers=["Peer A","Peer B","Peer C","Peer D","Peer E","Peer F","Peer G","Peer H"];
   const cats=["Comp","Notice","Non-comp","IP","Sev","Gov"];
   const data=peers.map((_,i)=>cats.map((__,j)=>0.3+((i*31+j*17)%100)/100*0.7));
-  return (
-    <div className="card" style={{ padding:24 }}>
-      <div className="eyebrow">Peer similarity matrix</div>
-      <div style={{ fontSize:16,fontWeight:500,marginTop:6 }}>Clause overlap with peers</div>
-      <div style={{ marginTop:20,display:"grid",gridTemplateColumns:`repeat(${cats.length}, 1fr)`,gap:4 }}>
-        {cats.map(c=><div key={c} className="mono" style={{ fontSize:9,color:"var(--ink-400)",letterSpacing:"0.1em",textAlign:"center",paddingBottom:4 }}>{c.toUpperCase()}</div>)}
-        {data.map((row,i)=>row.map((v,j)=>(
-          <div key={`${i}-${j}`} style={{ aspectRatio:"1", background:`oklch(${100-v*50}% ${v*0.08} 232)`, border:"1px solid white", borderRadius:2, position:"relative", animation:motionEnabled?`fade-in-up .4s ease-out ${(i*6+j)*0.02}s both`:"none" }}>
-            {v>0.85&&<div style={{ position:"absolute",inset:3,border:"1px solid var(--ice-500)",borderRadius:1 }}/>}
-          </div>
-        )))}
+  const peers_label = ["Peer A","Peer B","Peer C","Peer D","Peer E","Peer F","Peer G","Peer H"];
+  const inner = (
+    <div style={{ padding:inline?0:24 }}>
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4 }}>
+        <div>
+          <div className="eyebrow">Peer similarity matrix</div>
+          <div style={{ fontSize:16,fontWeight:500,marginTop:6 }}>Clause overlap with peers</div>
+        </div>
       </div>
+      <div style={{ display:"flex",gap:8,marginTop:12,marginBottom:4 }}>
+        <div style={{ width:60,flexShrink:0 }}/>
+        <div style={{ flex:1,display:"grid",gridTemplateColumns:`repeat(${cats.length}, 1fr)`,gap:4 }}>
+          {cats.map(c=><div key={c} className="mono" style={{ fontSize:9,color:"var(--ink-400)",letterSpacing:"0.1em",textAlign:"center",paddingBottom:2 }}>{c.toUpperCase()}</div>)}
+        </div>
+      </div>
+      {data.map((row,i)=>(
+        <div key={i} style={{ display:"flex",gap:8,marginBottom:4,alignItems:"center" }}>
+          <div style={{ width:60,flexShrink:0,fontSize:10,color:"var(--ink-400)",textAlign:"right",paddingRight:8 }}>{peers_label[i]}</div>
+          <div style={{ flex:1,display:"grid",gridTemplateColumns:`repeat(${cats.length}, 1fr)`,gap:4 }}>
+            {row.map((v,j)=>(
+              <div key={j} style={{ aspectRatio:"1",background:`oklch(${100-v*50}% ${v*0.08} 232)`,border:"1px solid white",borderRadius:2,position:"relative",animation:motionEnabled?`fade-in-up .4s ease-out ${(i*6+j)*0.02}s both`:"none" }}>
+                {v>0.85&&<div style={{ position:"absolute",inset:3,border:"1px solid var(--ice-500)",borderRadius:1 }}/>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
       <div style={{ display:"flex",justifyContent:"space-between",marginTop:14,fontSize:11,color:"var(--ink-500)" }}>
-        <span className="mono">LOW</span>
+        <span className="mono">LOW SIMILARITY</span>
         <div style={{ flex:1,height:4,margin:"0 12px",borderRadius:2,background:"linear-gradient(90deg, oklch(98% 0 232), oklch(50% 0.08 232))" }}/>
-        <span className="mono">HIGH</span>
+        <span className="mono">HIGH SIMILARITY</span>
       </div>
     </div>
   );
+  return inline ? inner : <div className="card">{inner}</div>;
 }
 
 // ─── RedactedDoc (extraction screen) ─────────────────────────────────────────
@@ -469,8 +505,7 @@ export default function Home() {
   const [progress, setProgress]         = useState(0);
   const [visibleClauses, setVisible]    = useState<Set<number>>(new Set());
   const [activeNode, setActiveNode]     = useState<string|null>(null);
-  const [introWord, setIntroWord]       = useState<"juritas"|"atlas">("juritas");
-  const [showIntro, setShowIntro]       = useState(false);
+
   const [showKnowledge, setShowKb]      = useState(false);
   const [absorbedDocs, setAbsorbedDocs] = useState<KnowledgeDoc[]>([]);
   const [gated, setGated]               = useState(false);
@@ -481,6 +516,10 @@ export default function Home() {
   const [extractStep, setExtractStep]   = useState(0);
   const [selectedDoc, setSelectedDoc]   = useState(0);
   const [demoMode, setDemoMode]         = useState(true);
+  const [heroView, setHeroView]         = useState<"deviation"|"similarity"|"ribbons">("deviation");
+  const [showAllClauses, setShowAllClauses] = useState(false);
+  const [analysis, setAnalysis]             = useState<ContractAnalysis|null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const inputRef     = useRef<HTMLInputElement>(null);
   const snapSession  = useRef<UserSession|null>(null);
@@ -501,17 +540,6 @@ export default function Home() {
     if(!gated&&phase!=="landing") setPhase("landing");
   },[gated]);
 
-  // Intro animation
-  useEffect(()=>{
-    if(!gated) return;
-    if(typeof window==="undefined") return;
-    if(sessionStorage.getItem("atlas_intro")) return;
-    setShowIntro(true);
-    const t1=setTimeout(()=>setIntroWord("atlas"),1600);
-    const t2=setTimeout(()=>setShowIntro(false),3200);
-    sessionStorage.setItem("atlas_intro","1");
-    return()=>{ clearTimeout(t1); clearTimeout(t2); };
-  },[gated]);
 
   // Knowledge docs
   useEffect(()=>{
@@ -534,6 +562,19 @@ export default function Home() {
   useEffect(()=>{
     if(phase!=="ingesting") return;
     setProgress(0); setVisible(new Set());
+    // Kick off real analysis if a file was uploaded
+    const f = snapFile.current;
+    if (f) {
+      setAnalysis(null);
+      setAnalysisLoading(true);
+      const fd = new FormData();
+      fd.append("file", f);
+      fetch("/api/analyze", { method:"POST", body:fd })
+        .then(r => r.json())
+        .then(data => { if (data.analysis) setAnalysis(data.analysis); })
+        .catch(() => {})
+        .finally(() => setAnalysisLoading(false));
+    }
     const timers: ReturnType<typeof setTimeout>[]=[];
     clauses.forEach((c,i)=>{ timers.push(setTimeout(()=>setVisible(prev=>new Set([...prev,i])),c.delay)); });
     const prog=setInterval(()=>setProgress(p=>Math.min(p+1,100)),40);
@@ -579,6 +620,112 @@ export default function Home() {
   const startNewSession=()=>{ const s:UserSession={id:`a_${Date.now()}`,shortId:shortId(),createdAt:Date.now(),contracts:[]}; saveSession(s); setSession(s); setFile(null); setPhase("landing"); };
   const contractName=file?.name?.replace(/\.[^/.]+$/,"")??session?.contracts.at(-1)?.name??"Employment Agreement";
   const codeValid=userCode.length>=5;
+
+  const generateMemo = () => {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    const date = new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" });
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8"/>
+<title>Atlas — Engagement Memo</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Geist',system-ui,sans-serif;color:#181f2e;background:white;padding:64px;max-width:760px;margin:0 auto;font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'Geist Mono',monospace;}
+  h1{font-size:32px;font-weight:300;letter-spacing:-0.03em;margin:32px 0 8px;}
+  h2{font-size:16px;font-weight:500;letter-spacing:-0.01em;margin:32px 0 12px;padding-bottom:8px;border-bottom:1px solid #e2e5e9;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:24px;border-bottom:2px solid #181f2e;}
+  .mark{font-size:13px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;}
+  .meta{font-size:11px;color:#6b7280;text-align:right;line-height:1.8;}
+  .disclaimer{background:#f8ebd0;border:1px solid #e8b441;border-radius:6px;padding:10px 14px;font-size:11px;color:#7a5a20;margin:20px 0 28px;letter-spacing:0.01em;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0 24px;}
+  .kpi{border:1px solid #e2e5e9;border-radius:8px;padding:14px;}
+  .kpi-label{font-size:10px;color:#6b7280;margin-bottom:6px;}
+  .kpi-value{font-family:'Geist Mono',monospace;font-size:26px;font-weight:300;letter-spacing:-0.04em;}
+  .kpi-delta{font-size:10px;color:#6b7280;margin-top:4px;}
+  .doc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0 24px;}
+  .doc{border:1px solid #e2e5e9;border-radius:8px;padding:12px;}
+  .doc-type{font-size:9px;font-family:'Geist Mono',monospace;letter-spacing:0.1em;color:#8c92a0;margin-bottom:6px;}
+  .doc-name{font-size:12px;font-weight:500;}
+  .doc-score{font-family:'Geist Mono',monospace;font-size:20px;font-weight:400;margin-top:8px;}
+  .clause-row{display:grid;grid-template-columns:24px 1fr 100px 80px;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid #e2e5e9;}
+  .clause-row:last-child{border-bottom:none;}
+  .clause-num{font-family:'Geist Mono',monospace;font-size:10px;color:#8c92a0;}
+  .clause-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .clause-body{font-size:11px;color:#6b7280;line-height:1.55;}
+  .clause-match{font-family:'Geist Mono',monospace;font-size:10px;color:#6b7280;}
+  .chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;}
+  .chip-red{background:#f8e1dc;color:#7a2020;}
+  .chip-amber{background:#f8ebd0;color:#7a5a20;}
+  .footer{margin-top:48px;padding-top:20px;border-top:1px solid #e2e5e9;display:flex;justify-content:space-between;font-size:10px;color:#8c92a0;}
+  @media print{body{padding:48px;} @page{margin:0;}}
+</style>
+</head><body>
+<div class="header">
+  <div>
+    <div class="mark">Atlas</div>
+    <div style="font-size:11px;color:#6b7280;margin-top:4px;font-family:'Geist Mono',monospace;letter-spacing:0.06em;">ENGAGEMENT MEMO</div>
+  </div>
+  <div class="meta">
+    <div>Session ${session?.shortId ?? "——"}</div>
+    <div>${date}</div>
+    <div>Prepared by Atlas Intelligence</div>
+  </div>
+</div>
+
+<div class="disclaimer">ILLUSTRATIVE DATA — This memo contains demo data generated for illustration purposes only. It does not represent analysis of real contracts.</div>
+
+<h1>Engagement Summary</h1>
+<p style="color:#6b7280;font-size:14px;">4 contracts analyzed against market benchmarks · 26 flags surfaced · 9 require attention</p>
+
+<h2>Contracts Reviewed</h2>
+<div class="doc-grid">
+  <div class="doc"><div class="doc-type">01 · EMPLOYMENT</div><div class="doc-name">Mercer · Employment</div><div class="doc-score" style="color:#d9533f;">62</div><div class="kpi-delta">risk score</div></div>
+  <div class="doc"><div class="doc-type">02 · TENANCY</div><div class="doc-name">Foley St · Tenancy</div><div class="doc-score" style="color:#4fa486;">38</div><div class="kpi-delta">risk score</div></div>
+  <div class="doc"><div class="doc-type">03 · EMPLOYMENT</div><div class="doc-name">Severance · Exec</div><div class="doc-score" style="color:#d9533f;">71</div><div class="kpi-delta">risk score</div></div>
+  <div class="doc"><div class="doc-type">04 · TENANCY</div><div class="doc-name">Sublease · Q1</div><div class="doc-score" style="color:#4fa486;">24</div><div class="kpi-delta">risk score</div></div>
+</div>
+
+<h2>Key Metrics</h2>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">Clauses extracted</div><div class="kpi-value">148</div><div class="kpi-delta">+12 vs. prior</div></div>
+  <div class="kpi"><div class="kpi-label">Above market</div><div class="kpi-value" style="color:#d9533f;">3</div><div class="kpi-delta">non-compete, IP, notice</div></div>
+  <div class="kpi"><div class="kpi-label">Favorable to client</div><div class="kpi-value">2</div><div class="kpi-delta">severance, base comp</div></div>
+  <div class="kpi"><div class="kpi-label">Peer matches</div><div class="kpi-value">2,143</div><div class="kpi-delta">84% similarity ceiling</div></div>
+</div>
+
+<h2>Clauses Requiring Attention</h2>
+<div>
+  <div class="clause-row">
+    <div class="clause-num">01</div>
+    <div><div class="clause-title">Non-compete · §14.2</div><div class="clause-body">Global, 12-month restriction. Peer median is 6 months / regional. Atlas suggests narrowing to UK + EU and reducing to 9 months.</div></div>
+    <div class="clause-match">3% of peers</div>
+    <div><span class="chip chip-red">HIGH</span></div>
+  </div>
+  <div class="clause-row">
+    <div class="clause-num">02</div>
+    <div><div class="clause-title">IP Assignment · §11</div><div class="clause-body">Full present + future assignment with no carve-outs for pre-existing work. Peers typically exclude background IP.</div></div>
+    <div class="clause-match">22% of peers</div>
+    <div><span class="chip chip-amber">REVIEW</span></div>
+  </div>
+  <div class="clause-row">
+    <div class="clause-num">03</div>
+    <div><div class="clause-title">Notice period · §18</div><div class="clause-body">6 months mutual is symmetric but above the 3-month market median for this seniority band.</div></div>
+    <div class="clause-match">31% of peers</div>
+    <div><span class="chip chip-amber">REVIEW</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>© Atlas Intelligence 2026</span>
+  <span class="mono">SOC 2 TYPE II · ISO 27001 · ATTORNEY-CLIENT PRIVILEGED</span>
+</div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  };
 
   const EXTRACT_CLAUSES=[
     { id:"parties",  label:"Parties",           value:"Mercer Holdings Ltd. ↔ K. Bellamy",  cat:"Identity",    flag:undefined },
@@ -690,7 +837,7 @@ export default function Home() {
                 <div style={{ position:"absolute",right:"10%",top:"6%",width:250,transform:"rotate(4deg)",animation:"drift-tile 11s ease-in-out infinite 1.2s","--rot":"4deg" } as React.CSSProperties}>
                   <GlassDoc variant="dark" title="Employment Contract" lines={7}/>
                 </div>
-                <div style={{ position:"absolute",left:"22%",bottom:"6%",width:240,transform:"rotate(-2deg)",animation:"drift-tile 13s ease-in-out infinite .5s","--rot":"-2deg" } as React.CSSProperties}>
+                <div style={{ position:"absolute",left:"22%",bottom:"36%",width:240,transform:"rotate(-2deg)",animation:"drift-tile 13s ease-in-out infinite .5s","--rot":"-2deg" } as React.CSSProperties}>
                   <GlassDoc variant="dark" title="Severance Schedule" lines={5}/>
                 </div>
                 <svg style={{ position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none" }} viewBox="0 0 500 620" preserveAspectRatio="none">
@@ -701,7 +848,7 @@ export default function Home() {
                   <circle cx="380" cy="130" r="3" fill="var(--ice-300)"/>
                   <circle cx="200" cy="450" r="3" fill="var(--ice-300)"/>
                 </svg>
-                <div className="glass-tile" style={{ position:"absolute",right:"6%",bottom:"14%",padding:"14px 16px",minWidth:180 }}>
+                <div className="glass-tile" style={{ position:"absolute",right:"6%",bottom:"22%",padding:"14px 16px",minWidth:180 }}>
                   <div className="mono" style={{ fontSize:10,color:"var(--ice-300)",letterSpacing:"0.1em" }}>BENCHMARK CORPUS</div>
                   <div style={{ marginTop:8,fontSize:13,color:"rgba(168,184,216,0.7)",lineHeight:1.5 }}>
                     Thousands of employment &amp; tenancy clauses, anonymised
@@ -894,11 +1041,24 @@ export default function Home() {
             {/* ── DASHBOARD ───────────────────────────────────────────────── */}
             {phase==="dashboard"&&(
               <motion.div key="dashboard" {...page} style={{ padding:"28px 32px 64px",maxWidth:1440,margin:"0 auto",width:"100%" }}>
-                {/* Demo mode banner */}
-                <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:20,padding:"10px 16px",background:"var(--amber-soft)",borderRadius:8,border:"1px solid oklch(85% 0.08 78)" }}>
-                  <span style={{ fontSize:11,fontWeight:600,color:"oklch(40% 0.10 70)",letterSpacing:"0.04em",flexShrink:0 }}>ILLUSTRATIVE DATA</span>
-                  <span style={{ fontSize:12,color:"oklch(45% 0.10 70)" }}>This dashboard previews what Atlas will surface once your contracts are processed by the analysis pipeline.</span>
-                </div>
+                {/* Status banner */}
+                {analysisLoading ? (
+                  <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:20,padding:"10px 16px",background:"oklch(97% 0.008 250)",borderRadius:8,border:"1px solid oklch(88% 0.02 250)" }}>
+                    <span style={{ width:8,height:8,borderRadius:"50%",background:"var(--ice-400)",animation:"pulse-ring 1.2s ease-out infinite",flexShrink:0 }}/>
+                    <span style={{ fontSize:11,fontWeight:600,color:"var(--ink-500)",letterSpacing:"0.04em",flexShrink:0 }}>ANALYZING</span>
+                    <span style={{ fontSize:12,color:"var(--ink-500)" }}>Atlas is reading your contract — live data will appear shortly.</span>
+                  </div>
+                ) : analysis ? (
+                  <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:20,padding:"10px 16px",background:"oklch(97% 0.02 145)",borderRadius:8,border:"1px solid oklch(88% 0.06 145)" }}>
+                    <span style={{ fontSize:11,fontWeight:600,color:"oklch(35% 0.10 145)",letterSpacing:"0.04em",flexShrink:0 }}>AI ANALYSIS</span>
+                    <span style={{ fontSize:12,color:"oklch(40% 0.10 145)" }}>Atlas analyzed <strong>{contractName}</strong> · {analysis.totalClauses} clauses extracted · {analysis.flaggedClauses.length} flagged for review.</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:20,padding:"10px 16px",background:"var(--amber-soft)",borderRadius:8,border:"1px solid oklch(85% 0.08 78)" }}>
+                    <span style={{ fontSize:11,fontWeight:600,color:"oklch(40% 0.10 70)",letterSpacing:"0.04em",flexShrink:0 }}>ILLUSTRATIVE DATA</span>
+                    <span style={{ fontSize:12,color:"oklch(45% 0.10 70)" }}>This dashboard previews what Atlas will surface once your contracts are processed by the analysis pipeline.</span>
+                  </div>
+                )}
 
                 <>
                     {/* Title row */}
@@ -906,19 +1066,30 @@ export default function Home() {
                       <div>
                         <div className="eyebrow">Engagement insights</div>
                         <h1 style={{ fontSize:36,fontWeight:300,letterSpacing:"-0.03em",margin:"8px 0 4px",color:"var(--ink-900)" }}>
-                          <span style={{ fontWeight:600 }}>4 contracts</span> analyzed against market benchmarks.
+                          {analysis
+                            ? <><span style={{ fontWeight:600 }}>{contractName}</span> analyzed against market benchmarks.</>
+                            : <><span style={{ fontWeight:600 }}>4 contracts</span> analyzed against market benchmarks.</>
+                          }
                         </h1>
-                        <p style={{ fontSize:13,color:"var(--ink-500)" }}>26 flags surfaced · 9 require attention · Last refresh 2 minutes ago</p>
+                        <p style={{ fontSize:13,color:"var(--ink-500)" }}>
+                          {analysis
+                            ? `${analysis.flaggedClauses.length} flags surfaced · ${analysis.unfavorableCount} require attention`
+                            : "26 flags surfaced · 9 require attention · Last refresh 2 minutes ago"
+                          }
+                        </p>
                       </div>
                       <div style={{ display:"flex",gap:8 }}>
-                        <button className="btn btn-light"><Ico.doc/> Export memo</button>
-                        <button className="btn btn-dark" onClick={()=>setPhase("upload")}>Run another →</button>
+                        <button className="btn btn-light" onClick={generateMemo}><Ico.doc/> Export memo</button>
+                        <button className="btn btn-dark" onClick={()=>{ setAnalysis(null); setPhase("upload"); }}>Run another →</button>
                       </div>
                     </div>
 
                     {/* Doc selector */}
                     <div style={{ display:"flex",marginBottom:28,border:"1px solid var(--hairline)",borderRadius:12,overflow:"hidden",background:"white" }}>
-                      {DEMO_DOCS.map((d,i)=>{
+                      {(analysis
+                        ? [{ short:contractName, type:analysis.contractType, risk:analysis.riskScore }]
+                        : DEMO_DOCS
+                      ).map((d,i)=>{
                         const active=i===selectedDoc;
                         const sev=d.risk>=60?"var(--red)":d.risk>=40?"var(--amber)":"var(--green)";
                         return (
@@ -938,12 +1109,12 @@ export default function Home() {
                       })}
                     </div>
 
-                    <DeviationChart motionEnabled={true}/>
+                    <DeviationChart motionEnabled={true} heroView={heroView} onHeroViewChange={setHeroView}/>
 
                     <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginTop:16 }}>
-                      <KPI label="Clauses extracted" value="148" delta="+12 vs. prior" trend="ok"/>
-                      <KPI label="Above market" value="3" delta="non-compete, IP, notice" trend="high" sublabel="UNFAVORABLE"/>
-                      <KPI label="Favorable to client" value="2" delta="severance, base comp" trend="ok" sublabel="FAVORABLE"/>
+                      <KPI label="Clauses extracted" value={analysis ? String(analysis.totalClauses) : "148"} delta={analysis ? `${analysis.flaggedClauses.length} flagged` : "+12 vs. prior"} trend="ok"/>
+                      <KPI label="Above market" value={analysis ? String(analysis.unfavorableCount) : "3"} delta={analysis ? analysis.flaggedClauses.filter(c=>c.severity==="high").map(c=>c.title.split(" ·")[0]).slice(0,2).join(", ")||"per Atlas analysis" : "non-compete, IP, notice"} trend="high" sublabel="UNFAVORABLE"/>
+                      <KPI label="Favorable to client" value={analysis ? String(analysis.favorableCount) : "2"} delta={analysis ? "per Atlas analysis" : "severance, base comp"} trend="ok" sublabel="FAVORABLE"/>
                       <KPI label="Peer matches" value="2,143" delta="84% similarity ceiling" trend="ok"/>
                     </div>
 
@@ -958,27 +1129,46 @@ export default function Home() {
                     </div>
 
                     {/* Flagged clauses */}
-                    <div className="card" style={{ marginTop:16,padding:24 }}>
-                      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16 }}>
-                        <div><div className="eyebrow">Attention required · 3 clauses</div><div style={{ fontSize:16,fontWeight:500,marginTop:6 }}>Top deviations to negotiate</div></div>
-                        <button style={{ fontSize:12,color:"var(--ink-500)" }}>View all 26 →</button>
-                      </div>
-                      {[
-                        { title:"Non-compete · §14.2", body:"Global, 12-month restriction. Peer median is 6 months / regional. Atlas suggests narrowing to UK + EU and reducing to 9 months.", sev:"high", match:"3% of peers" },
-                        { title:"IP Assignment · §11",  body:"Full present + future assignment with no carve-outs for pre-existing work. Peers typically exclude background IP.", sev:"med", match:"22% of peers" },
-                        { title:"Notice period · §18",  body:"6 months mutual is symmetric but above the 3-month market median for this seniority band.", sev:"med", match:"31% of peers" },
-                      ].map((c,i)=>(
-                        <div key={i} style={{ display:"grid",gridTemplateColumns:"20px 1fr 140px 100px",gap:16,alignItems:"center",padding:"14px 0",borderTop:i>0?"1px solid var(--hairline)":"none" }}>
-                          <span className="mono" style={{ fontSize:10,color:"var(--ink-400)" }}>{(i+1).toString().padStart(2,"0")}</span>
-                          <div>
-                            <div style={{ fontSize:13,fontWeight:600,color:"var(--ink-900)" }}>{c.title}</div>
-                            <div style={{ fontSize:12.5,color:"var(--ink-500)",marginTop:4,lineHeight:1.5 }}>{c.body}</div>
+                    {(()=>{
+                      const ILLUSTRATIVE = [
+                        { title:"Non-compete · §14.2",         body:"Global, 12-month restriction. Peer median is 6 months / regional. Atlas suggests narrowing to UK + EU and reducing to 9 months.", severity:"high" as const, peerMatch:"3% of peers" },
+                        { title:"IP Assignment · §11",          body:"Full present + future assignment with no carve-outs for pre-existing work. Peers typically exclude background IP.", severity:"high" as const, peerMatch:"22% of peers" },
+                        { title:"Notice period · §18",          body:"6-month mutual notice is above the 3-month market median for this seniority band. Consider aligning to market.", severity:"med" as const, peerMatch:"31% of peers" },
+                        { title:"Governing law · §22",          body:"Exclusive English jurisdiction with no dispute escalation mechanism. Peers increasingly include CEDR mediation as a precursor to litigation.", severity:"med" as const, peerMatch:"41% of peers" },
+                        { title:"Data processing · §9.3",       body:"No sub-processor list or notification obligation. GDPR Art. 28 requires a current list and 30-day change notice.", severity:"high" as const, peerMatch:"8% of peers" },
+                        { title:"Limitation of liability · §16",body:"Cap set at 1× annual fees. Atlas benchmark shows 2–3× is standard for professional services contracts of this scope.", severity:"med" as const, peerMatch:"27% of peers" },
+                        { title:"Change of control · §20",      body:"No change-of-control trigger allowing termination. Peers typically include a 30-day exit right for either party on acquisition.", severity:"med" as const, peerMatch:"35% of peers" },
+                        { title:"Indemnification · §15.1",      body:"Broad mutual indemnity with no carve-out for consequential loss. One-sided carve-out or mutual cap is market standard.", severity:"med" as const, peerMatch:"19% of peers" },
+                      ];
+                      const ALL_CLAUSES = analysis ? analysis.flaggedClauses : ILLUSTRATIVE;
+                      const visible = showAllClauses ? ALL_CLAUSES : ALL_CLAUSES.slice(0,3);
+                      return (
+                        <div id="flagged-clauses" className="card" style={{ marginTop:16,padding:24 }}>
+                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:16 }}>
+                            <div>
+                              <div className="eyebrow">Attention required · {ALL_CLAUSES.length} clauses</div>
+                              <div style={{ fontSize:16,fontWeight:500,marginTop:6 }}>Top deviations to negotiate</div>
+                            </div>
+                            {ALL_CLAUSES.length > 3 && (
+                              <button onClick={()=>setShowAllClauses(v=>!v)} style={{ fontSize:12,color:"var(--ink-500)",transition:"color 0.2s" }} onMouseEnter={e=>(e.currentTarget.style.color="var(--ink-900)")} onMouseLeave={e=>(e.currentTarget.style.color="var(--ink-500)")}>
+                                {showAllClauses ? "Show fewer ↑" : `View all ${ALL_CLAUSES.length} →`}
+                              </button>
+                            )}
                           </div>
-                          <div className="mono" style={{ fontSize:11,color:"var(--ink-500)" }}>{c.match}</div>
-                          <div style={{ textAlign:"right" }}><span className={c.sev==="high"?"chip chip-red":"chip chip-amber"}>{c.sev==="high"?"HIGH":"REVIEW"}</span></div>
+                          {visible.map((c,i)=>(
+                            <div key={i} style={{ display:"grid",gridTemplateColumns:"20px 1fr 140px 100px",gap:16,alignItems:"center",padding:"14px 0",borderTop:i>0?"1px solid var(--hairline)":"none" }}>
+                              <span className="mono" style={{ fontSize:10,color:"var(--ink-400)" }}>{(i+1).toString().padStart(2,"0")}</span>
+                              <div>
+                                <div style={{ fontSize:13,fontWeight:600,color:"var(--ink-900)" }}>{c.title}</div>
+                                <div style={{ fontSize:12.5,color:"var(--ink-500)",marginTop:4,lineHeight:1.5 }}>{c.body}</div>
+                              </div>
+                              <div className="mono" style={{ fontSize:11,color:"var(--ink-500)" }}>{c.peerMatch}</div>
+                              <div style={{ textAlign:"right" }}><span className={c.severity==="high"?"chip chip-red":"chip chip-amber"}>{c.severity==="high"?"HIGH":"REVIEW"}</span></div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
 
                 </>
               </motion.div>
@@ -1171,71 +1361,98 @@ export default function Home() {
         </div>
       )}
 
-      {/* ══ INTRO ANIMATION ════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showIntro&&(
-          <motion.div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#F4F1EC]" initial={{ opacity:1 }} exit={{ opacity:0,transition:{ duration:0.9,ease:E,delay:0.2 } }}>
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              <div className="orb-breathe absolute -top-64 -left-28 h-[900px] w-[900px] rounded-full bg-amber-100/42 blur-[200px]"/>
-              <div className="absolute -top-20 right-[1%] h-[640px] w-[640px] rounded-full bg-stone-200/30 blur-[180px]"/>
-            </div>
-            <div className="relative flex items-center justify-center" style={{ minWidth:"12ch",height:"1.2em" }}>
-              <AnimatePresence mode="wait">
-                {introWord==="juritas"?(
-                  <motion.div key="juritas" className="flex" exit={{ opacity:0,y:-10,filter:"blur(6px)",transition:{ duration:0.55,ease:E } }}>
-                    {"Juritas".split("").map((ch,i)=>(
-                      <motion.span key={i} className="text-[clamp(3.2rem,7vw,6rem)] font-light tracking-[-0.04em] text-[#13100D]" initial={{ opacity:0,y:14,filter:"blur(4px)" }} animate={{ opacity:1,y:0,filter:"blur(0px)" }} transition={{ duration:0.5,delay:i*0.07,ease:E }}>{ch}</motion.span>
-                    ))}
-                  </motion.div>
-                ):(
-                  <motion.div key="atlas" className="flex">
-                    {"Atlas".split("").map((ch,i)=>(
-                      <motion.span key={i} className="text-[clamp(3.2rem,7vw,6rem)] font-light tracking-[-0.04em] text-[#13100D]" initial={{ opacity:0,y:12,filter:"blur(4px)" }} animate={{ opacity:1,y:0,filter:"blur(0px)" }} transition={{ duration:0.55,delay:i*0.08,ease:E }}>{ch}</motion.span>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <motion.p className="absolute bottom-[44%] text-[10px] font-medium uppercase tracking-[0.36em] text-[#13100D]/30" initial={{ opacity:0 }} animate={{ opacity:introWord==="juritas"?1:0 }} transition={{ duration:0.5,delay:introWord==="juritas"?0.7:0 }}>Juritas platform</motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ══ KNOWLEDGE OVERLAY ══════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showKnowledge&&(
           <motion.div className="fixed inset-0 z-[100] flex items-start justify-end" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.3 }}>
             <div className="absolute inset-0 bg-[#13100D]/18 backdrop-blur-[2px]" onClick={()=>setShowKb(false)}/>
-            <motion.div className="glass-panel relative m-6 flex max-h-[calc(100vh-48px)] w-full max-w-md flex-col overflow-hidden rounded-[28px]" initial={{ x:40,opacity:0 }} animate={{ x:0,opacity:1 }} exit={{ x:40,opacity:0 }} transition={{ duration:0.45,ease:E }}>
-              <div className="flex items-center justify-between border-b border-[#13100D]/5 px-7 py-5">
-                <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-[#13100D]/35">Knowledge</p>
+            <motion.div className="glass-panel relative m-6 flex max-h-[calc(100vh-48px)] w-full max-w-lg flex-col overflow-hidden rounded-[28px]" initial={{ x:40,opacity:0 }} animate={{ x:0,opacity:1 }} exit={{ x:40,opacity:0 }} transition={{ duration:0.45,ease:E }}>
+
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-[#13100D]/5 px-7 py-5">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-[#13100D]/35">Knowledge Hub</p>
+                  <p className="text-[13px] font-light text-[#13100D]/55 mt-1">
+                    {3 + absorbedDocs.length} document{3 + absorbedDocs.length !== 1 ? "s" : ""} · {absorbedDocs.length > 0 ? `${absorbedDocs.length} uploaded` : "system frameworks only"}
+                  </p>
+                </div>
                 <button onClick={()=>setShowKb(false)} className="flex h-7 w-7 items-center justify-center rounded-full text-[18px] leading-none text-[#13100D]/30 transition-colors hover:bg-[#13100D]/5 hover:text-[#13100D]/60">×</button>
               </div>
-              <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
+
+              <div className="flex-1 overflow-y-auto px-7 py-6 space-y-8">
+
+                {/* System frameworks */}
                 <div>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#13100D]/30 mb-4">Absorbed documents</p>
-                  {absorbedDocs.length===0?(
-                    <p className="text-[13px] font-light text-[#13100D]/42">No documents absorbed yet. Upload PDFs from the admin panel to ground Atlas in specific legal context.</p>
-                  ):(
-                    absorbedDocs.map(d=>(
-                      <div key={d.id} className="flex items-start gap-4 py-4 border-b border-[#13100D]/5 last:border-b-0">
-                        <div className="flex-1">
-                          <p className="text-[13px] font-medium text-[#13100D]">{d.name}</p>
-                          {d.sizeKb&&<p className="text-[11px] font-light text-[#13100D]/38 mt-1">{d.sizeKb} KB</p>}
+                  <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#13100D]/30 mb-4">System Frameworks</p>
+                  <div className="space-y-0">
+                    {[
+                      {
+                        title: "EU Directive 2019/1023",
+                        subtitle: "Preventive Restructuring Frameworks",
+                        jurisdiction: "EU",
+                        desc: "Establishes minimum standards for preventive restructuring, debt discharge, and disqualification measures across member states. Informs analysis of termination clauses, creditor rights, and cross-border employment obligations.",
+                      },
+                      {
+                        title: "UK Employment Rights Act 1996",
+                        subtitle: "Consolidated Employment Statute",
+                        jurisdiction: "UK",
+                        desc: "Defines statutory notice periods, unfair dismissal thresholds, redundancy entitlements, and written employment particulars. Primary reference for UK-governed employment and severance clause benchmarking.",
+                      },
+                      {
+                        title: "California AB5",
+                        subtitle: "Worker Classification — ABC Test",
+                        jurisdiction: "US · CA",
+                        desc: "Codifies the ABC test for distinguishing employees from independent contractors. Applies to agreements involving California-based parties or services delivered in-state. Relevant to IP assignment and non-compete enforceability.",
+                      },
+                    ].map((doc,i,arr)=>(
+                      <div key={doc.title} className={`py-5 ${i < arr.length-1 ? "border-b border-[#13100D]/5" : ""}`}>
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div>
+                            <p className="text-[13px] font-medium text-[#13100D]">{doc.title}</p>
+                            <p className="text-[11px] text-[#13100D]/40 mt-0.5">{doc.subtitle}</p>
+                          </div>
+                          <span className="shrink-0 font-mono text-[9px] tracking-[0.12em] bg-[#13100D]/5 text-[#13100D]/45 px-2 py-1 rounded">
+                            {doc.jurisdiction}
+                          </span>
                         </div>
+                        <p className="text-[12px] font-light leading-[1.65] text-[#13100D]/52">{doc.desc}</p>
                       </div>
-                    ))
+                    ))}
+                  </div>
+                </div>
+
+                {/* Uploaded documents */}
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#13100D]/30 mb-4">Uploaded Documents</p>
+                  {absorbedDocs.length===0?(
+                    <div className="rounded-[16px] border border-dashed border-[#13100D]/10 px-5 py-6 text-center">
+                      <p className="text-[12px] font-light text-[#13100D]/38">No documents uploaded yet.</p>
+                      <p className="text-[11px] font-light text-[#13100D]/25 mt-1">Add PDFs via the admin panel to extend the analysis corpus.</p>
+                    </div>
+                  ):(
+                    <div className="space-y-0">
+                      {absorbedDocs.map((d,i)=>(
+                        <div key={d.id} className={`flex items-start justify-between gap-4 py-4 ${i < absorbedDocs.length-1 ? "border-b border-[#13100D]/5" : ""}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-medium text-[#13100D] truncate">{d.name}</p>
+                            <p className="text-[11px] font-light text-[#13100D]/38 mt-0.5">
+                              {new Date(d.uploadedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+                              {d.sizeKb ? ` · ${d.sizeKb} KB` : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-mono text-[9px] tracking-[0.12em] bg-[#13100D]/5 text-[#13100D]/35 px-2 py-1 rounded">PDF</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.26em] text-[#13100D]/30 mb-4">Default corpus</p>
-                  {["EU Directive 2019/1023 — Restructuring","UK Employment Rights Act 1996","California AB5 — Worker Classification"].map(doc=>(
-                    <div key={doc} className="flex items-center gap-3 py-3 border-b border-[#13100D]/5 last:border-b-0">
-                      <div className="h-1.5 w-1.5 rounded-full bg-[#13100D]/22 shrink-0"/>
-                      <p className="text-[12px] font-light text-[#13100D]/55">{doc}</p>
-                    </div>
-                  ))}
-                </div>
+
+                {/* Footer note */}
+                <p className="text-[11px] font-light leading-[1.7] text-[#13100D]/28 border-t border-[#13100D]/5 pt-5">
+                  Documents inform Atlas's comparative analysis and clause benchmarking. Source titles are attributed in findings. Document content is never surfaced directly to users.
+                </p>
+
               </div>
             </motion.div>
           </motion.div>
