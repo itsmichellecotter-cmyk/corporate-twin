@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.6.3",
+  "checkpoint_id": "3aeadeb10168",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/page.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3a/eadeb10168/0/metadata.json",
+      "transcript": "/3a/eadeb10168/0/full.jsonl",
+      "content_hash": "/3a/eadeb10168/0/content_hash.txt",
+      "prompt": "/3a/eadeb10168/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 8639,
+    "cache_read_tokens": 2512270,
+    "output_tokens": 5909,
+    "api_call_count": 13
+  }
+}
