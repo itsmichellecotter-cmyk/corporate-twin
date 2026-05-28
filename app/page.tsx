@@ -128,8 +128,9 @@ export default function Home() {
   const [visibleClauses, setVisible]    = useState<Set<number>>(new Set());
   const [activeNode, setActiveNode]     = useState<string | null>(null);
   const [showKnowledge, setShowKb]      = useState(false);
-  const [kbFile, setKbFile]             = useState<File | null>(null);
+  const [kbFiles, setKbFiles]           = useState<File[]>([]);
   const [kbAbsorbing, setKbAbsorbing]   = useState(false);
+  const [absorbedDocs, setAbsorbedDocs] = useState<string[]>([]);
 
   const inputRef   = useRef<HTMLInputElement>(null);
   const kbInputRef = useRef<HTMLInputElement>(null);
@@ -141,6 +142,14 @@ export default function Home() {
 
   // ── Session init ──────────────────────────────────────────────────
   useEffect(() => { setSession(loadSession()); }, []);
+
+  // ── Knowledge docs — persisted globally across sessions ───────────
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("atlas_knowledge_docs");
+      if (raw) setAbsorbedDocs(JSON.parse(raw) as string[]);
+    } catch {}
+  }, []);
 
   // ── Cursor tracking → spring-smoothed ────────────────────────────
   const rawX = useMotionValue(0.5);
@@ -209,9 +218,20 @@ export default function Home() {
     saveSession(s); setSession(s); setFile(null); setPhase("landing");
   };
 
-  const absorb = (f: File) => {
-    setKbFile(f); setKbAbsorbing(true);
-    setTimeout(() => setKbAbsorbing(false), 3200);
+  const absorb = (files: FileList) => {
+    const incoming = Array.from(files);
+    setKbFiles(incoming);
+    setKbAbsorbing(true);
+    setTimeout(() => {
+      const names = incoming.map(f => f.name);
+      setAbsorbedDocs(prev => {
+        const merged = [...prev, ...names.filter(n => !prev.includes(n))];
+        try { localStorage.setItem("atlas_knowledge_docs", JSON.stringify(merged)); } catch {}
+        return merged;
+      });
+      setKbFiles([]);
+      setKbAbsorbing(false);
+    }, 3200);
   };
 
   const contractName =
@@ -1051,8 +1071,8 @@ export default function Home() {
                 </div>
 
                 <input ref={kbInputRef} type="file" accept=".pdf,.doc,.docx,.txt"
-                  className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) absorb(f); }}
+                  multiple className="hidden"
+                  onChange={e => { if (e.target.files?.length) absorb(e.target.files); }}
                 />
 
                 <AnimatePresence mode="wait">
@@ -1062,8 +1082,15 @@ export default function Home() {
                       className="space-y-5 rounded-[18px] bg-[#15120E]/3 px-6 py-7"
                     >
                       <p className="text-[13px] font-light text-[#15120E]/50">
-                        Absorbing{kbFile ? ` ${kbFile.name}` : ""}
+                        Absorbing {kbFiles.length} document{kbFiles.length !== 1 ? "s" : ""}
                       </p>
+                      <div className="mb-1 space-y-1">
+                        {kbFiles.map(f => (
+                          <p key={f.name} className="text-[10px] text-[#15120E]/30 truncate">
+                            {f.name}
+                          </p>
+                        ))}
+                      </div>
                       <div className="relative h-px w-full overflow-hidden rounded-full bg-[#15120E]/7">
                         <motion.div
                           className="absolute inset-y-0 left-0 h-full rounded-full bg-[#15120E]/22"
@@ -1084,25 +1111,28 @@ export default function Home() {
                                    transition-colors hover:bg-white/65"
                       >
                         <p className="text-[13px] font-light text-[#15120E]/30">
-                          Upload a knowledge document
+                          Upload knowledge documents
                         </p>
                         <p className="mt-1 text-[10px] text-[#15120E]/18">
-                          Labor law · Tenant rights · Fairness frameworks
+                          Select one or multiple · PDF · DOCX · TXT
                         </p>
                       </button>
 
-                      <div className="space-y-2 pt-1">
-                        {knowledgeDocs.map((doc, i) => (
-                          <motion.div key={i}
-                            className="flex items-center gap-3 py-1"
-                            initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.38, delay: i * 0.07 }}
-                          >
-                            <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
-                            <p className="text-[11px] text-[#15120E]/36">{doc}</p>
-                          </motion.div>
-                        ))}
-                      </div>
+                      {/* Seed docs + user-uploaded, deduplicated */}
+                      {[...knowledgeDocs, ...absorbedDocs].length > 0 && (
+                        <div className="space-y-2 pt-1">
+                          {[...knowledgeDocs, ...absorbedDocs].map((doc, i) => (
+                            <motion.div key={doc}
+                              className="flex items-center gap-3 py-1"
+                              initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.38, delay: i * 0.06 }}
+                            >
+                              <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
+                              <p className="text-[11px] text-[#15120E]/36 truncate">{doc}</p>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
