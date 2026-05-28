@@ -48,18 +48,34 @@ const clauses = [
 ] as const;
 
 const globalPatterns = [
-  { id: "term",      category: "Employment", count: 847, rising: true,
-    headline: "Termination asymmetry is the most common hidden exposure",
-    detail: "7 of 10 employment agreements give employers a 14-day exit window while requiring 30+ days from employees." },
-  { id: "nonc",      category: "Employment", count: 312, rising: true,
-    headline: "Non-compete durations have grown 34% since 2022",
-    detail: "The average clause has extended from 9 to 14 months. 18-month clauses are now common across most sectors." },
-  { id: "unilat",   category: "Service",    count: 205, rising: false,
-    headline: "Unilateral amendment rights appear in 12% of agreements",
-    detail: "Disproportionately common in SaaS and service contracts — rarely disclosed clearly to signatories." },
-  { id: "ip",        category: "Employment", count: 634, rising: true,
-    headline: "IP clauses routinely exceed employment scope",
-    detail: "94% of uploaded employment agreements assign all work product — including personal projects — to the employer." },
+  {
+    id: "termination",
+    category: "Termination",
+    source: "EU Working Conditions Directive 2019/1152",
+    headline: "Asymmetrical notice obligations are subject to regulatory scrutiny across EU jurisdictions",
+    detail: "EU Directive 2019/1152 requires employment terms to be proportionate and transparent. Notice structures that differ materially between employer and employee are increasingly examined by national labour courts as potential violations of the proportionality principle.",
+  },
+  {
+    id: "noncompete",
+    category: "Non-compete",
+    source: "Almega (SE) · German HGB §74 · UK common law",
+    headline: "Non-compete enforceability depends on jurisdiction, duration, and demonstrable business interest",
+    detail: "Swedish employment guidance (Almega) generally limits non-competes to 9 months for most roles. German law caps the restriction at 24 months and requires financial compensation throughout. UK courts apply a reasonableness test — scope must reflect a legitimate, protectable business interest.",
+  },
+  {
+    id: "ip",
+    category: "Intellectual property",
+    source: "UK Patents Act 1977 s.39 · German ArbEG",
+    headline: "Broad IP assignment clauses covering non-employment work may not be fully enforceable",
+    detail: "The UK Patents Act 1977 (s.39) limits employer IP rights to inventions arising directly in the course of employment. Germany's Arbeitnehmererfindungsgesetz applies similar restrictions. Clauses assigning all work product — including personal projects — may be challengeable under applicable national law.",
+  },
+  {
+    id: "amendment",
+    category: "Contract terms",
+    source: "Wandsworth LBC v D'Silva [1998] IRLR 329",
+    headline: "Unilateral amendment clauses require fresh consideration to be binding under most contract law systems",
+    detail: "Under English contract law (Wandsworth LBC v D'Silva [1998] IRLR 329), employment terms cannot be varied unilaterally without consent or fresh consideration. Similar principles apply across EU civil law jurisdictions. The clause is not automatically void, but its enforceability is frequently contested.",
+  },
 ] as const;
 
 const knowledgeDocs = [
@@ -203,7 +219,8 @@ export default function Home() {
     session?.contracts.at(-1)?.name ??
     "Employment Agreement";
 
-  const totalAnalyzed = 2847 + (session?.contracts.length ?? 0);
+  // No fabricated aggregate counts — analysis is grounded in uploaded agreements
+  // and publicly attributable legal frameworks only.
 
   // ─────────────────────────────────────────────────────────────────
   return (
@@ -374,11 +391,11 @@ export default function Home() {
                   transition={{ duration: 1, delay: 1.45 }}
                 >
                   <p className="text-[9px] uppercase tracking-[0.34em] text-[#15120E]/20">
-                    Collective corpus · {totalAnalyzed.toLocaleString()} agreements
+                    Grounded in public law
                   </p>
                   <p className="text-[13px] font-light leading-7 text-[#15120E]/32">
-                    7 of 10 employment agreements contain asymmetrical termination protections.
-                    Non-compete durations have grown 34% since 2022.
+                    Analysis is grounded in EU Directive 2019/1152, UK Employment Rights Act 1996,
+                    and publicly available employment framework guidance.
                   </p>
                 </motion.div>
 
@@ -875,9 +892,9 @@ export default function Home() {
                   transition={{ duration: 0.8, delay: 0.6, ease: E }}
                 >
                   {[
-                    { label: "Non-compete",      yours: "18 months",                            norm: "6–12 months typical" },
-                    { label: "Geographic scope", yours: "50-mile radius · no remote exception", norm: "89% include remote carve-outs" },
-                    { label: "Amendment rights", yours: "Unilateral · no notice required",      norm: "12% of agreements allow this" },
+                    { label: "Non-compete",      yours: "18 months",                            norm: "Almega (SE): up to 9 months for most roles; German HGB §74: max 24 months with compensation" },
+                    { label: "Geographic scope", yours: "50-mile radius · no remote exception", norm: "EU courts apply proportionality; scope must reflect a legitimate business interest" },
+                    { label: "Amendment rights", yours: "Unilateral · no notice required",      norm: "Requires fresh consideration to be binding — Wandsworth LBC v D'Silva [1998]" },
                   ].map((row, i) => (
                     <motion.div key={row.label}
                       className="grid gap-2 border-b border-[#15120E]/5 py-5 last:border-b-0
@@ -925,16 +942,16 @@ export default function Home() {
                 transition={{ duration: 0.9, ease: E }}
               >
                 <p className="text-[10px] uppercase tracking-[0.32em] text-[#15120E]/25">
-                  Collective corpus · {totalAnalyzed.toLocaleString()} agreements
+                  Legal context
                 </p>
                 <h2 className="text-[clamp(2.8rem,6.5vw,5rem)] font-extralight
                                leading-[1.03] tracking-[-0.05em] text-[#15120E]">
-                  Patterns across
+                  Regulatory
                   <br />
-                  <span className="text-[#15120E]/26">all agreements.</span>
+                  <span className="text-[#15120E]/26">frameworks.</span>
                 </h2>
                 <p className="text-[1.05rem] font-light text-[#15120E]/38">
-                  Drawn from anonymized analysis. No personal data is shared.
+                  Grounded in publicly available law, regulatory guidance, and attributable legal frameworks.
                 </p>
               </motion.div>
 
@@ -952,9 +969,6 @@ export default function Home() {
                         <p className="text-[9px] uppercase tracking-[0.24em] text-[#15120E]/22">
                           {p.category}
                         </p>
-                        <p className="font-mono text-[10px] tabular-nums text-[#15120E]/16">
-                          {p.count.toLocaleString()}
-                        </p>
                       </div>
                       <div className="flex-1 space-y-3">
                         <p className="text-[1.1rem] font-extralight leading-[1.5] text-[#15120E]">
@@ -963,15 +977,13 @@ export default function Home() {
                         <p className="text-[14px] font-light leading-7 text-[#15120E]/40">
                           {p.detail}
                         </p>
-                        {p.rising && (
-                          <motion.p
-                            className="text-[9px] uppercase tracking-[0.26em] text-amber-700/45"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            transition={{ duration: 0.6, delay: 0.55 + i * 0.15 }}
-                          >
-                            Increasing
-                          </motion.p>
-                        )}
+                        <motion.p
+                          className="text-[9px] font-light tracking-[0.06em] text-[#15120E]/28"
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                          transition={{ duration: 0.6, delay: 0.55 + i * 0.15 }}
+                        >
+                          {p.source}
+                        </motion.p>
                       </div>
                     </div>
                   </motion.div>
