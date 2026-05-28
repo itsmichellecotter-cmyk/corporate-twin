@@ -15,7 +15,7 @@ interface KnowledgeDoc {
 
 interface AccessCode {
   code: string;
-  createdAt: number;
+  created: number;
   used: boolean;
   usedAt?: number;
 }
@@ -27,16 +27,6 @@ const SEED_DOCS = [
   "UK Employment Rights Act 1996",
   "California AB5 — Worker Classification",
 ];
-
-const INITIAL_CODES: AccessCode[] = [
-  "ATL-K7M2R", "ATL-PX4NB", "ATL-H9QV3", "ATL-W5TYJ", "ATL-C8ZFD",
-  "ATL-N3LGS", "ATL-R6BEK", "ATL-M4PWX", "ATL-J2VHQ", "ATL-Y7CTN",
-].map(code => ({ code, createdAt: Date.now(), used: false }));
-
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-// Prototype access code — replace with environment-based auth before production
-const ADMIN_CODE = "ATLAS";
 
 const E = [0.22, 0.1, 0.28, 1.0] as [number, number, number, number];
 
@@ -67,67 +57,56 @@ function saveDocs(docs: KnowledgeDoc[]) {
   try { localStorage.setItem("atlas_knowledge_docs", JSON.stringify(docs)); } catch {}
 }
 
-function loadCodes(): AccessCode[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem("atlas_access_codes");
-    return raw ? (JSON.parse(raw) as AccessCode[]) : [];
-  } catch { return []; }
-}
-
-function saveCodes(codes: AccessCode[]) {
-  try { localStorage.setItem("atlas_access_codes", JSON.stringify(codes)); } catch {}
-}
-
-function generateCode(): string {
-  return "ATL-" + Array.from({ length: 5 }, () =>
-    CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
-  ).join("");
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
   const [authed, setAuthed]           = useState(false);
-  const [code, setCode]               = useState("");
+  const [adminPin, setAdminPin]       = useState("");
+  const [pinInput, setPinInput]       = useState("");
   const [codeError, setCodeError]     = useState(false);
   const [docs, setDocs]               = useState<KnowledgeDoc[]>([]);
   const [absorbing, setAbsorbing]     = useState(false);
   const [pending, setPending]         = useState<File[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [codes, setCodes]             = useState<AccessCode[]>([]);
+  const [codesLoading, setCodesLoading] = useState(false);
   const [copiedCode, setCopiedCode]   = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Restore session auth on mount
-  useEffect(() => {
-    if (sessionStorage.getItem("atlas_admin") === "1") setAuthed(true);
-  }, []);
 
   // Load docs when authenticated
   useEffect(() => {
     if (!authed) return;
     setDocs(loadDocs());
-
-    // Seed initial codes if none exist
-    const existing = loadCodes();
-    if (existing.length === 0) {
-      saveCodes(INITIAL_CODES);
-      setCodes(INITIAL_CODES);
-    } else {
-      setCodes(existing);
-    }
+    fetchCodes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
-  const handleCode = (e: React.FormEvent) => {
+  const fetchCodes = async (pin = adminPin) => {
+    setCodesLoading(true);
+    try {
+      const res = await fetch(`/api/codes/list?pin=${encodeURIComponent(pin)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCodes(data.codes ?? []);
+      }
+    } finally {
+      setCodesLoading(false);
+    }
+  };
+
+  const handleCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.trim().toUpperCase() === ADMIN_CODE) {
-      sessionStorage.setItem("atlas_admin", "1");
+    const pin = pinInput.trim();
+    const res = await fetch(`/api/codes/list?pin=${encodeURIComponent(pin)}`);
+    if (res.ok) {
+      const data = await res.json();
+      setAdminPin(pin);
+      setCodes(data.codes ?? []);
       setAuthed(true);
       setCodeError(false);
     } else {
       setCodeError(true);
-      setCode("");
+      setPinInput("");
     }
   };
 
@@ -167,17 +146,13 @@ export default function AdminPage() {
     }, 3000);
   };
 
-  const generateCodes = (n: number) => {
-    const newCodes: AccessCode[] = Array.from({ length: n }, () => ({
-      code: generateCode(),
-      createdAt: Date.now(),
-      used: false,
-    }));
-    setCodes(prev => {
-      const updated = [...prev, ...newCodes];
-      saveCodes(updated);
-      return updated;
+  const generateCodes = async (n: number) => {
+    const res = await fetch("/api/codes/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: n, pin: adminPin }),
     });
+    if (res.ok) await fetchCodes();
   };
 
   const copyCode = (c: string) => {
@@ -196,9 +171,9 @@ export default function AdminPage() {
   };
 
   const signOut = () => {
-    sessionStorage.removeItem("atlas_admin");
     setAuthed(false);
-    setCode("");
+    setAdminPin("");
+    setPinInput("");
   };
 
   const unusedCount = codes.filter(c => !c.used).length;
@@ -259,8 +234,8 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <input
                       type="password"
-                      value={code}
-                      onChange={e => { setCode(e.target.value); setCodeError(false); }}
+                      value={pinInput}
+                      onChange={e => { setPinInput(e.target.value); setCodeError(false); }}
                       placeholder="Access code"
                       autoFocus
                       className={`w-full rounded-2xl border bg-white/55 px-5 py-4 text-[14px]
@@ -320,7 +295,7 @@ export default function AdminPage() {
                       Access codes
                     </p>
                     <p className="text-[12px] font-light text-[#15120E]/32">
-                      {unusedCount} unused · {usedCount} used
+                      {codesLoading ? "Loading…" : `${unusedCount} unused · ${usedCount} used`}
                     </p>
                   </div>
                   <div className="flex items-center gap-5">
@@ -376,8 +351,8 @@ export default function AdminPage() {
                               c.used ? "text-[#15120E]/20" : "text-[#15120E]/28"
                             }`}>
                               {c.used
-                                ? `Used ${formatDate(c.usedAt ?? c.createdAt)}`
-                                : formatDate(c.createdAt)
+                                ? `Used ${formatDate(c.usedAt ?? c.created)}`
+                                : formatDate(c.created)
                               }
                             </span>
                             {!c.used && (

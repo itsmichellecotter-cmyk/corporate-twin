@@ -58,24 +58,15 @@ function saveSession(s: UserSession) {
   if (typeof window!=="undefined") localStorage.setItem("atlas_session", JSON.stringify(s));
 }
 
-const VALID_CODES = new Set([
-  "ATL-BP6MK", "ATL-X3RNW", "ATL-Q8ZGT", "ATL-F5VHJ", "ATL-D2KSY",
-  "ATL-T7NXB", "ATL-E4MRC", "ATL-G9WPL", "ATL-U6HBQ", "ATL-S3FZK",
-]);
-
-function validateUserCode(input: string): boolean {
-  const clean = input.toUpperCase().trim();
-  if (clean==="ATLAS") return true;
-  if (VALID_CODES.has(clean)) return true;
+async function validateUserCode(input: string): Promise<boolean> {
   try {
-    const raw = localStorage.getItem("atlas_access_codes");
-    if (!raw) return false;
-    const codes = JSON.parse(raw) as AccessCode[];
-    const idx = codes.findIndex(c => c.code===clean && !c.used);
-    if (idx===-1) return false;
-    codes[idx] = { ...codes[idx], used:true, usedAt:Date.now() };
-    localStorage.setItem("atlas_access_codes", JSON.stringify(codes));
-    return true;
+    const res = await fetch("/api/codes/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: input }),
+    });
+    const data = await res.json();
+    return data.valid === true;
   } catch { return false; }
 }
 
@@ -486,6 +477,7 @@ export default function Home() {
   const [userCode, setUserCode]         = useState("");
   const [userCodeError, setUserCodeError] = useState(false);
   const [codeFocused, setCodeFocused]   = useState(false);
+  const [codeLoading, setCodeLoading]   = useState(false);
   const [extractStep, setExtractStep]   = useState(0);
   const [selectedDoc, setSelectedDoc]   = useState(0);
   const [demoMode, setDemoMode]         = useState(true);
@@ -568,9 +560,12 @@ export default function Home() {
   },[phase]);
 
   // Handlers
-  const handleUserCode=(e:React.FormEvent)=>{
+  const handleUserCode=async(e:React.FormEvent)=>{
     e.preventDefault();
-    if(validateUserCode(userCode)){
+    setCodeLoading(true);
+    const valid=await validateUserCode(userCode);
+    setCodeLoading(false);
+    if(valid){
       localStorage.setItem("atlas_user_access","granted");
       setGated(true);
       setPhase("upload");
@@ -667,8 +662,8 @@ export default function Home() {
                         style={{ flex:1,background:"transparent",border:0,outline:"none",color:"white",fontSize:16,letterSpacing:"0.18em",padding:"12px 0" }}
                         autoComplete="off"
                       />
-                      <button type="submit" disabled={!codeValid} className="btn btn-ice" style={{ fontSize:13 }}>
-                        Continue →
+                      <button type="submit" disabled={!codeValid||codeLoading} className="btn btn-ice" style={{ fontSize:13 }}>
+                        {codeLoading?"Checking…":"Continue →"}
                       </button>
                     </div>
                     {userCodeError&&<p style={{ fontSize:12,color:"var(--red)",marginTop:8 }}>Invalid or already-used code. Try again.</p>}
