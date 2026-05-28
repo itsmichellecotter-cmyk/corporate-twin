@@ -1,0 +1,189 @@
+We are building Atlas — an AI-native contractual vulnerability intelligence platform.
+
+Current state:
+
+* Next.js app already built
+* Upload flow exists
+* Agreement ingestion animation exists
+* Spider/relationship graph exists
+* Multi-session structure exists
+* Elegant minimal white/light interface exists
+* Core functionality should remain unchanged
+
+Current problem:
+The interface still feels too flat, too faint, too static, and not premium enough.
+
+Target design references:
+
+* Harvey
+* Legora
+* Apple Intelligence
+* Notion
+* Polar.sh
+
+The product should feel:
+
+* cinematic
+* spatial
+* calm
+* institutional
+* restrained
+* emotionally intelligent
+* highly sophisticated
+* AI-native
+
+NOT:
+
+* startup-y
+* dashboard-heavy
+* generic SaaS
+* flat white document viewer
+
+Priority improvements:
+
+1. Dramatically improve visual sophistication
+2. Increase depth, layering, translucency, and spatial feeling
+3. Introduce premium glass morphism and ambient lighting
+4. Improve motion choreography and transition quality
+5. Add subtle intelligent animation throughout
+6. Increase typography confidence and hierarchy
+7. Improve contrast/readability
+8. Preserve whitespace and restraint
+9. Make upload → reasoning → insight flow feel magical
+10. Keep everything elegant and minimal
+
+Most important:
+Do NOT redesign functionality.
+Do NOT rebuild architecture.
+Do NOT add dashboard clutter.
+
+Focus entirely on elevating:
+
+* visual polish
+* motion design
+* premium interaction quality
+* perceived intelligence
+* emotional feel
+
+Act like a senior product designer working on the next-generation AI interface layer for legal intelligence.
+
+---
+
+Can I buy additional usage credits directly here?
+
+---
+
+I have topped up usage credits, and am now creating a design prototype. While that's cooking, we need to create the individual user codes. I need 10 unique codes, how can I do this? And where would a user enter their unique code?  This should also be a feature available within the admin panel of the platform itself, to generate a unique code.
+
+---
+
+My access code ATLAS is not working. Give me the admin code
+
+---
+
+Option 2
+
+---
+
+Read design_handoff_atlas/README.md and the files in design_handoff_atlas/src/. These are design references — recreate them in this codebase using our existing component library and routing. Start with the design tokens (src/styles.css), then the landing page.
+
+---
+
+I'm trying to upload the folder but it won't let me drag and drop. Next option?
+
+---
+
+Here is the design reference. Important caveats: 1. These do not replace any core functionality, this is just the design wrapper in front of it. 2. There should be no falsified information. If the dashboard section is too bare without pre-populated informtaion while the database of user contracts is being built, then add a toggle for demo information for illustrative purposes only. C:\Users\miche\Downloads\ATLAS_HANDOFF.md
+
+---
+
+Here is the design reference. Important caveats: 1. These do not replace any core functionality, this is just the design wrapper in front of it. 2. There should be no falsified information. If the dashboard section is too bare without pre-populated informtaion while the database of user contracts is being built, then add a toggle for demo information for illustrative purposes only. C:\Users\miche\Downloads\ATLAS_HANDOFF.md
+
+---
+
+Here is the design reference. Important caveats: 1. These do not replace any core
+  functionality, this is just the design wrapper in front of it. 2. There should be no
+  falsified information. If the dashboard section is too bare without pre-populated
+  informtaion while the database of user contracts is being built, then add a toggle
+  for demo information for illustrative purposes only.
+  C:\Users\miche\Downloads\ATLAS_HANDOFF.md
+
+---
+
+where can I see the updated design?
+
+---
+
+Where does the 12,847 come from? Is this legitimate?
+
+---
+
+Instead of just removing, is there any legitimate number we can replace it with?
+
+---
+
+Yes
+
+---
+
+When I'm in the extract page I cannot get back to homepage. The logo in the top left should reroute back to homepage. Challenge me if this would cause an issue
+
+---
+
+There are dummy pages listed at the header. Remove any page links that are not configured/mapped out/set up
+
+---
+
+Move the hero wording up slightly on the page (as there is a large amount of empty space at the top of the page)
+
+---
+
+npm run build
+
+---
+
+npm run dev
+
+---
+
+npm install -g vercel
+
+---
+
+vercel
+
+---
+
+vercel --prod
+
+---
+
+vercel --prod
+
+---
+
+how do I get to  the unique user codes again?
+
+---
+
+Code error reported by users: Invalid or already-used code. I need 10 functional unique codes generated asap
+
+---
+
+Ok, where can I see the aggregate information across ALL uploaded contracts? The dashboard style insights?
+
+---
+
+I want to cross compare all contracts to source cross-contract insights (ie. 6 of the 15 contracts include xyz)
+
+---
+
+the dashboard button loops back to uploaded contracts. Please fix?
+
+---
+
+What do I need to do to deploy this update to the published link
+
+---
+
+Is everything pushed to entire?
