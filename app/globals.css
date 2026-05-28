@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --ink:    #15120E;
-  --sand:   #F6F4F0;
-  --glass:  rgba(250, 248, 245, 0.68);
-  --warm:   #C09060;
+  --ink:   #13100D;
+  --sand:  #F4F1EC;
+  --warm:  #B8894A;
 }
 
 @theme inline {
@@ -21,7 +20,7 @@ html {
 
 body {
   min-height: 100vh;
-  background: #F6F4F0;
+  background: linear-gradient(158deg, #F5F2ED 0%, #EFECE7 100%);
   color: var(--ink);
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
@@ -33,59 +32,110 @@ body {
 * { box-sizing: border-box; }
 
 ::selection {
-  background: rgba(192, 144, 96, 0.18);
+  background: rgba(184, 137, 74, 0.2);
   color: var(--ink);
 }
 
 ::-webkit-scrollbar { width: 0; }
 
-/* ── Glass surface ────────────────────────────────────────────────── */
-.glass-surface {
-  background: rgba(252, 250, 247, 0.72);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+/* ── Glass tier system ────────────────────────────────────────────── */
+
+/* Tier 1 — primary panels, overlays, modals */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.98);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 24px 56px rgba(21, 18, 14, 0.055),
-    0 6px 16px rgba(21, 18, 14, 0.032);
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(19, 16, 13, 0.03),
+    0 4px 8px rgba(0, 0, 0, 0.025),
+    0 16px 32px rgba(19, 16, 13, 0.06),
+    0 40px 80px rgba(19, 16, 13, 0.07);
 }
 
-.glass-surface-subtle {
-  background: rgba(255, 255, 255, 0.52);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+/* Tier 2 — content surfaces, graph background, insight panels */
+.glass-surface {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.94);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    0 12px 32px rgba(21, 18, 14, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 4px 6px rgba(0, 0, 0, 0.018),
+    0 12px 24px rgba(19, 16, 13, 0.05),
+    0 32px 56px rgba(19, 16, 13, 0.055);
+}
+
+/* Tier 3 — drop zones, subtle containers */
+.glass-surface-subtle {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 4px 12px rgba(19, 16, 13, 0.03),
+    0 16px 32px rgba(19, 16, 13, 0.04);
 }
 
 /* ── Graph atmosphere ─────────────────────────────────────────────── */
 .graph-fog {
   background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(246, 244, 240, 0.18) 45%,
+    ellipse at 50% 46%,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(248, 245, 240, 0.28) 42%,
     transparent 68%
   );
 }
 
-/* ── Ambient pulse ────────────────────────────────────────────────── */
+/* ── Primary CTA button ───────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 9999px;
+  background: #13100D;
+  padding: 15px 32px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #F4F1EC;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.14),
+    0 8px 20px rgba(19, 16, 13, 0.18);
+  transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #1e1a15;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.14),
+    0 14px 28px rgba(19, 16, 13, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: scale(0.98) translateY(0);
+}
+
+/* ── Ambient animations ───────────────────────────────────────────── */
+
 @keyframes breathe {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50%       { opacity: 0.75; transform: scale(1.04); }
+  0%, 100% { opacity: 0.48; transform: scale(1); }
+  50%       { opacity: 0.72; transform: scale(1.06); }
 }
 
 @keyframes drift {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-14px); }
+  0%,  100% { transform: translateY(0)    translateX(0); }
+  33%        { transform: translateY(-18px) translateX(8px); }
+  66%        { transform: translateY(-9px)  translateX(-5px); }
 }
 
-@keyframes ripple {
-  0%   { transform: scale(1);   opacity: 0.18; }
-  100% { transform: scale(3.5); opacity: 0; }
+@keyframes orbSpin {
+  from { transform: rotate(0deg) translateX(24px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(24px) rotate(-360deg); }
 }
 
-.orb-breathe { animation: breathe 18s ease-in-out infinite; }
-.orb-drift   { animation: drift   22s ease-in-out infinite; }
+.orb-breathe { animation: breathe 20s ease-in-out infinite; }
+.orb-drift   { animation: drift   26s ease-in-out infinite; }
