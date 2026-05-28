@@ -5,6 +5,13 @@ import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface KnowledgeDoc {
+  id: string;
+  name: string;
+  uploadedAt: number;
+  sizeKb?: number;
+}
+
 type Phase =
   | "landing" | "workspace" | "upload"
   | "ingesting" | "map" | "insight" | "intelligence";
@@ -130,7 +137,7 @@ export default function Home() {
   const [showKnowledge, setShowKb]      = useState(false);
   const [kbFiles, setKbFiles]           = useState<File[]>([]);
   const [kbAbsorbing, setKbAbsorbing]   = useState(false);
-  const [absorbedDocs, setAbsorbedDocs] = useState<string[]>([]);
+  const [absorbedDocs, setAbsorbedDocs] = useState<KnowledgeDoc[]>([]);
 
   const inputRef   = useRef<HTMLInputElement>(null);
   const kbInputRef = useRef<HTMLInputElement>(null);
@@ -147,7 +154,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("atlas_knowledge_docs");
-      if (raw) setAbsorbedDocs(JSON.parse(raw) as string[]);
+      if (raw) setAbsorbedDocs(JSON.parse(raw) as KnowledgeDoc[]);
     } catch {}
   }, []);
 
@@ -223,9 +230,14 @@ export default function Home() {
     setKbFiles(incoming);
     setKbAbsorbing(true);
     setTimeout(() => {
-      const names = incoming.map(f => f.name);
+      const newDocs: KnowledgeDoc[] = incoming.map(f => ({
+        id: `doc_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        name: f.name,
+        uploadedAt: Date.now(),
+        sizeKb: f.size > 0 ? Math.round(f.size / 1024) : undefined,
+      }));
       setAbsorbedDocs(prev => {
-        const merged = [...prev, ...names.filter(n => !prev.includes(n))];
+        const merged = [...prev, ...newDocs.filter(d => !prev.some(p => p.name === d.name))];
         try { localStorage.setItem("atlas_knowledge_docs", JSON.stringify(merged)); } catch {}
         return merged;
       });
@@ -1118,17 +1130,27 @@ export default function Home() {
                         </p>
                       </button>
 
-                      {/* Seed docs + user-uploaded, deduplicated */}
-                      {[...knowledgeDocs, ...absorbedDocs].length > 0 && (
+                      {/* Seed docs + user-uploaded */}
+                      {(knowledgeDocs.length > 0 || absorbedDocs.length > 0) && (
                         <div className="space-y-2 pt-1">
-                          {[...knowledgeDocs, ...absorbedDocs].map((doc, i) => (
-                            <motion.div key={doc}
+                          {knowledgeDocs.map((name, i) => (
+                            <motion.div key={`seed-${i}`}
                               className="flex items-center gap-3 py-1"
                               initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
                               transition={{ duration: 0.38, delay: i * 0.06 }}
                             >
                               <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
-                              <p className="text-[11px] text-[#15120E]/36 truncate">{doc}</p>
+                              <p className="text-[11px] text-[#15120E]/36 truncate">{name}</p>
+                            </motion.div>
+                          ))}
+                          {absorbedDocs.map((doc, i) => (
+                            <motion.div key={doc.id}
+                              className="flex items-center gap-3 py-1"
+                              initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.38, delay: (knowledgeDocs.length + i) * 0.06 }}
+                            >
+                              <div className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#15120E]/20" />
+                              <p className="text-[11px] text-[#15120E]/36 truncate">{doc.name}</p>
                             </motion.div>
                           ))}
                         </div>
@@ -1137,10 +1159,16 @@ export default function Home() {
                   )}
                 </AnimatePresence>
 
-                <button onClick={() => setShowKb(false)}
-                  className="text-[11px] text-[#15120E]/22 transition-colors hover:text-[#15120E]/45">
-                  Close
-                </button>
+                <div className="flex items-center justify-between">
+                  <button onClick={() => setShowKb(false)}
+                    className="text-[11px] text-[#15120E]/22 transition-colors hover:text-[#15120E]/45">
+                    Close
+                  </button>
+                  <a href="/admin"
+                    className="text-[11px] text-[#15120E]/22 transition-colors hover:text-[#15120E]/45">
+                    Admin →
+                  </a>
+                </div>
               </div>
             </motion.div>
           </motion.div>
