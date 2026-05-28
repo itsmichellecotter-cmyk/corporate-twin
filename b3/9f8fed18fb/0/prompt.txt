@@ -1,0 +1,122 @@
+I want to start prompting Claude Code here instead of within VS code. Will that work? Can I give my next prompt for my corporate-twin project?
+
+---
+
+We are pivoting the product toward a highly focused experience:
+
+Atlas reveals hidden contractual vulnerability and obligation asymmetry inside real agreements.
+
+This is no longer an enterprise dashboard product.
+
+It is now:
+a calm, cinematic intelligence system for understanding what contracts are actually doing to people.
+
+CRITICAL:
+The interface currently feels too engineering-heavy, card-heavy, dense, and enterprise-software-like.
+
+We must radically simplify.
+
+NEW DESIGN DIRECTION
+
+The interface should feel:
+
+* spatial
+* cinematic
+* emotionally intelligent
+* restrained
+* editorial
+* atmospheric
+* premium
+* deeply calm
+
+Reference the emotional feeling of:
+
+* Apple Intelligence
+* Linear
+* Arc browser
+* Harvey AI
+* modern luxury product systems
+
+DO NOT create:
+
+* dashboard UI
+* visible grids
+* obvious cards
+* enterprise software
+* cybersecurity aesthetic
+* glowing neon UI
+* crypto aesthetic
+* startup gradients
+
+INSTEAD:
+Use:
+
+* large typography
+* minimal surfaces
+* enormous whitespace
+* floating layout structures
+* subtle depth
+* restrained glass morphism
+* soft ambient lighting
+* blurred atmospheric gradients
+* progressive disclosure
+* cinematic transitions
+
+The UI should feel:
+“quietly intelligent.”
+
+NOT:
+“feature rich.”
+
+REMOVE:
+
+* unnecessary boxes
+* hard borders
+* stacked cards
+* excessive labels
+* visual clutter
+
+The experience should feel:
+like interacting with a calm intelligence layer.
+
+CORE EXPERIENCE
+
+The product flow is now:
+
+1. User uploads a real contract
+2. Atlas ingests the agreement
+3. Atlas builds a live obligation map
+4. Atlas reveals hidden vulnerability
+5. Atlas explains downstream consequences
+6. Atlas compares patterns across users/contracts
+
+This should feel:
+deeply human and emotionally resonant.
+
+VERY IMPORTANT:
+The product is NOT a contract summarizer.
+
+It is:
+a contractual intelligence engine.
+
+The intelligence should feel:
+ambient,
+embedded,
+contextual,
+and spatial.
+
+IMPLEMENT THE FOLLOWING:
+
+1. Minimal landing page
+2. Beautiful upload interaction
+3. Ambient ingestion animation
+4. Elegant obligation graph visualization
+5. Single-insight focus
+6. Multi-user contract comparison workspace
+7. Sophisticated motion system
+8. Extremely restrained typography hierarchy
+9. Soft light-mode palette with warm whites, smoke grays, subtle glass blur
+10. Eliminate all visual heaviness
+
+The final result should feel:
+like a future billion-dollar consumer intelligence product.
